@@ -22,7 +22,7 @@ on:
         required: true
         type: string
         description: The runners to run the test on. This is a json string representing an array of labels.
-        default: x86_64
+        default: ubuntu-24.04
       llvm-version:
         required: true
         type: string
