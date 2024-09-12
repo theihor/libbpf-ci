@@ -6,7 +6,7 @@
 #   branch="${GITHUB_REF_NAME}"
 # fi
 
-set -eu
+set -eux
 
 branch=${1:-bpf-next_base}
 
