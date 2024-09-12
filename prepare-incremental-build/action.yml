@@ -30,7 +30,7 @@ runs:
       id: get-commit-metadata
       shell: bash
       working-directory: ${{ inputs.repo-root }}
-      run: ./get-commit-metadata.sh ${{ inputs.base-branch }}
+      run: ${GITHUB_ACTION_PATH}/get-commit-metadata.sh ${{ inputs.base-branch }}
     - name: Pull recent KBUILD_OUTPUT contents
       uses: actions/cache@v4
       with:
@@ -45,5 +45,5 @@ runs:
       env:
         KBUILD_OUTPUT: ${{ inputs.kbuild-output }}
       working-directory: ${{ inputs.repo-root }}
-      run: ./prepare-incremental-builds.sh ${{ steps.get-commit-metadata.outputs.commit }}
+      run: ${GITHUB_ACTION_PATH}/prepare-incremental-builds.sh ${{ steps.get-commit-metadata.outputs.commit }}
 
