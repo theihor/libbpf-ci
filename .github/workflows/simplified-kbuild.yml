@@ -46,10 +46,14 @@ jobs:
     timeout-minutes: 100
     env:
         KERNEL: ${{ inputs.kernel }}
-        REPO_ROOT: ${{ github.workspace }}
-        SCRIPTS: ${{ github.workspace }}/.github/scripts
-        REPO_PATH: ""
+        REPO_ROOT: ${{ github.workspace }}/kernel-patches/bpf
+        REPO_PATH: kernel-patches/bpf
         KBUILD_OUTPUT: kbuild-output/
+        BASE_BRANCH: >- 
+          ${{ github.event_name == 'push' && github.ref_name
+              || github.base_ref
+              || 'bpf-next_base'
+          }}
     steps:
       - uses: actions/checkout@v4
         name: Checkout theihor/libbpf-ci
@@ -61,27 +65,15 @@ jobs:
           fetch-depth: 5
           repository: kernel-patches/bpf
           path: kernel-patches/bpf
-      - name: Get commit meta-data
-        id: get-commit-metadata
-        working-directory: kernel-patches/bpf
-        run: |
-          bash ${{ env.SCRIPTS }}/get-commit-metadata.sh bpf-next_base
-      # - name: Pull recent KBUILD_OUTPUT contents
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: ${{ env.KBUILD_OUTPUT }}
-      #     key: kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-${{ steps.get-commit-metadata.outputs.timestamp }}-${{ steps.get-commit-metadata.outputs.commit }}
-      #     restore-keys: |
-      #       kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-${{ steps.get-commit-metadata.outputs.timestamp }}-
-      #       kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-
-      #       kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-
-      # - name: Prepare incremental build
-      #   shell: bash
-      #   run: |
-      #     bash .github/scripts/prepare-incremental-builds.sh ${{ steps.get-commit-metadata.outputs.commit }}
-      # - uses:  ./patch-kernel
-      #   with:
-      #     repo-root: '${{ github.workspace }}'
+      - uses: ./prepare-incremental-build
+        with:
+          repo-root: ${{ env.REPO_ROOT }}
+          base-branch: ${{ env.BASE_BRANCH }}
+          arch: ${{ inputs.arch }}
+          toolchain_full: ${{ inputs.toolchain_full }}
+      - uses: ./patch-kernel
+        with:
+          repo-root: ${{ env.REPO_ROOT }}
       # - name: Setup build environment
       #   uses: ./setup-build-env
       #   with:

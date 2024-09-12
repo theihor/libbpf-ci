@@ -1,0 +1,46 @@
+name: 'Prepare incremental kernel build'
+description: 'Pull cached kernel build output from previous runs and prepare them for incremental build'
+inputs:
+  repo-root:
+    description: "Root of the kernel repository"
+    required: true
+    default: ${{ github.workspace }}
+  base-branch:
+    description: "Base branch for cache lookup"
+    required: true
+    default: bpf-next_base
+  arch:
+    required: true
+    type: string
+    description: "Part of cache lookup key"
+  toolchain_full:
+    required: true
+    type: string
+    description: "Part of cache lookup key"
+
+runs:
+  using: "composite"
+  steps:
+    env:
+      SCRIPTS: ${{ github.workspace }}
+      KBUILD_OUTPUT: kbuild-output/
+    steps:
+      - name: Get commit meta-data
+        id: get-commit-metadata
+        working-directory: ${{ inputs.repo-root }}
+        run: |
+          bash ${{ env.SCRIPTS }}/get-commit-metadata.sh ${{ inputs.base-branch }}
+      - name: Pull recent KBUILD_OUTPUT contents
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.KBUILD_OUTPUT }}
+          key: kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-${{ steps.get-commit-metadata.outputs.timestamp }}-${{ steps.get-commit-metadata.outputs.commit }}
+          restore-keys: |
+            kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-${{ steps.get-commit-metadata.outputs.timestamp }}-
+            kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-
+            kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-
+      - name: Prepare incremental build
+        shell: bash
+        working-directory: ${{ inputs.repo-root }}
+        run: ${{ env.SCRIPTS }}/prepare-incremental-builds.sh ${{ steps.get-commit-metadata.outputs.commit }}
+
