@@ -47,21 +47,25 @@ jobs:
     env:
         KERNEL: ${{ inputs.kernel }}
         REPO_ROOT: ${{ github.workspace }}
+        SCRIPTS: ${{ github.workspace }}/.github/scripts
         REPO_PATH: ""
         KBUILD_OUTPUT: kbuild-output/
     steps:
       - uses: actions/checkout@v4
+        name: Checkout theihor/libbpf-ci
+      - uses: actions/checkout@v4
+        name: Checkout kernel-patches/bpf
         # We fetch an actual bit of history here to facilitate incremental
         # builds (which may check out some earlier upstream change).
         with:
-          fetch-depth: 50
+          fetch-depth: 5
           repository: kernel-patches/bpf
           path: kernel-patches/bpf
       - name: Get commit meta-data
         id: get-commit-metadata
         working-directory: kernel-patches/bpf
         run: |
-          bash .github/scripts/get-commit-metadata.sh bpf-next_base
+          bash ${{ env.SCRIPTS }}/get-commit-metadata.sh bpf-next_base
       # - name: Pull recent KBUILD_OUTPUT contents
       #   uses: actions/cache@v4
       #   with:
