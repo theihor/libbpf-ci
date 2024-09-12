@@ -8,6 +8,8 @@
 
 set -eux
 
+echo "pwd = $(pwd)"
+
 branch=${1:-bpf-next_base}
 
 echo "branch=${branch}" >> "${GITHUB_OUTPUT}"
