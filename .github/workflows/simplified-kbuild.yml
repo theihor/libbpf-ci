@@ -65,7 +65,7 @@ jobs:
           fetch-depth: 5
           repository: kernel-patches/bpf
           path: kernel-patches/bpf
-      - uses: prepare-incremental-build
+      - uses: ./prepare-incremental-build
         with:
           repo-root: ${{ env.REPO_ROOT }}
           base-branch: ${{ env.BASE_BRANCH }}
