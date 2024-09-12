@@ -17,30 +17,33 @@ inputs:
     required: true
     type: string
     description: "Part of cache lookup key"
+  kbuild-output:
+    required: true
+    type: string
+    description: "Path to KBUILD_OUTPUT"
+    default: kbuild-output
 
 runs:
   using: "composite"
   steps:
-    env:
-      SCRIPTS: ${{ github.workspace }}
-      KBUILD_OUTPUT: kbuild-output/
-    steps:
-      - name: Get commit meta-data
-        id: get-commit-metadata
-        working-directory: ${{ inputs.repo-root }}
-        run: |
-          bash ${{ env.SCRIPTS }}/get-commit-metadata.sh ${{ inputs.base-branch }}
-      - name: Pull recent KBUILD_OUTPUT contents
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.KBUILD_OUTPUT }}
+    - name: Get commit meta-data
+      id: get-commit-metadata
+      shell: bash
+      working-directory: ${{ inputs.repo-root }}
+      run: get-commit-metadata.sh ${{ inputs.base-branch }}
+    - name: Pull recent KBUILD_OUTPUT contents
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.kbuild-output }}
           key: kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-${{ steps.get-commit-metadata.outputs.timestamp }}-${{ steps.get-commit-metadata.outputs.commit }}
-          restore-keys: |
-            kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-${{ steps.get-commit-metadata.outputs.timestamp }}-
-            kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-
-            kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-
-      - name: Prepare incremental build
-        shell: bash
-        working-directory: ${{ inputs.repo-root }}
-        run: ${{ env.SCRIPTS }}/prepare-incremental-builds.sh ${{ steps.get-commit-metadata.outputs.commit }}
+        restore-keys: |
+          kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-${{ steps.get-commit-metadata.outputs.timestamp }}-
+          kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-
+          kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-
+    - name: Prepare incremental build
+      shell: bash
+      env:
+        KBUILD_OUTPUT: ${{ inputs.kbuild-output }}
+      working-directory: ${{ inputs.repo-root }}
+      run: prepare-incremental-builds.sh ${{ steps.get-commit-metadata.outputs.commit }}
 
