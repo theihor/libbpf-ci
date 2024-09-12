@@ -16,13 +16,9 @@ echo "branch=${branch}" >> "${GITHUB_OUTPUT}"
 
 upstream="${branch//_base/}"
 
-commit=$(git rev-parse "origin/${upstream}" 2> /dev/null)
-if [ -z "${commit}" ]; then
-  echo "Could not rev-parse commit for origin/${upstream}, fetching..."
-  git fetch --quiet --prune --no-tags --depth=1 --no-recurse-submodules \
-      origin "+refs/heads/${upstream}:refs/remotes/origin/${upstream}"
-  commit=$(git rev-parse "origin/${upstream}")
-fi
+git fetch --quiet --prune --no-tags --depth=1 --no-recurse-submodules \
+    origin "+refs/heads/${upstream}:refs/remotes/origin/${upstream}"
+commit=$(git rev-parse "origin/${upstream}")
 
 timestamp_utc="$(TZ=utc git show --format='%cd' --no-patch --date=iso-strict-local "${commit}")"
 
