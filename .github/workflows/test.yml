@@ -1,10 +1,6 @@
 name: bpf-ci
 
-on:
-  pull_request:
-  push:
-    branches:
-      - main
+on: workflow_dispatch
 
 concurrency:
   group: ci-test-${{ github.ref_name }}
