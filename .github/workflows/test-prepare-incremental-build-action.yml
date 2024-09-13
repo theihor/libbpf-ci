@@ -41,8 +41,8 @@ on:
         default: false
 
 jobs:
-  build:
-    name: build for ${{ inputs.arch }} with ${{ inputs.toolchain_full }}${{ inputs.release && '-O2' || '' }}
+  test-job:
+    name: Test prepare-incremental-build action
     runs-on: ${{ inputs.runs_on }}
     timeout-minutes: 100
     env:
@@ -50,72 +50,33 @@ jobs:
         REPO_ROOT: ${{ github.workspace }}/kernel-patches/bpf
         REPO_PATH: kernel-patches/bpf
         KBUILD_OUTPUT: kbuild-output/
-        BASE_BRANCH: >- 
+        BASE_BRANCH: >-
           ${{ github.event_name == 'push' && github.ref_name
               || github.base_ref
               || 'bpf-next'
           }}
     steps:
+
       - uses: actions/checkout@v4
-        name: Checkout theihor/libbpf-ci
+        name: Checkout libbpf/ci
+
       - uses: actions/checkout@v4
         name: Checkout kernel-patches/bpf
-        # We fetch an actual bit of history here to facilitate incremental
-        # builds (which may check out some earlier upstream change).
         with:
           fetch-depth: 5
           repository: kernel-patches/bpf
-          path: kernel-patches/bpf
+          path: ${{ env.REPO_ROOT }}
+
       - uses: ./prepare-incremental-build
         with:
           repo-root: ${{ env.REPO_ROOT }}
           base-branch: ${{ env.BASE_BRANCH }}
           arch: ${{ inputs.arch }}
           toolchain_full: ${{ inputs.toolchain_full }}
-      - uses: ./patch-kernel
-        with:
-          repo-root: ${{ env.REPO_ROOT }}
-      # - name: Setup build environment
-      #   uses: ./setup-build-env
-      #   with:
-      #     arch: ${{ inputs.arch }}
-      #     llvm-version: ${{ inputs.llvm-version }}
-      #     pahole: c2f89dab3f2b0ebb53bab3ed8be32f41cb743c37
-      # - name: Print toolchain version used
-      #   shell: bash
-      #   run: |
-      #     TOOLCHAIN=${{ inputs.toolchain }}
-      #     if [ $TOOLCHAIN = "llvm" ]; then
-      #       TOOLCHAIN="clang-${{ inputs.llvm-version }}"
-      #     fi
-      #     ${TOOLCHAIN} --version
-      # - name: Build kernel image
-      #   uses: ./build-linux
-      #   with:
-      #     arch: ${{ inputs.arch }}
-      #     toolchain: ${{ inputs.toolchain }}
-      #     kbuild-output: ${{ env.KBUILD_OUTPUT }}
-      #     max-make-jobs: 32
-      #     llvm-version: ${{ inputs.llvm-version }}
-      # - name: Build selftests
-      #   uses: ./build-selftests
-      #   with:
-      #     arch: ${{ inputs.arch }}
-      #     toolchain: ${{ inputs.toolchain }}
-      #     kbuild-output: ${{ env.KBUILD_OUTPUT }}
-      #     max-make-jobs: 32
-      #     llvm-version: ${{ inputs.llvm-version }}
-      #   env:
-      #     # RELEASE= disables all optimizaions
-      #     # RELEASE=0 adds -O0 make flag
-      #     # RELEASE=1 adds -O2 make flag
-      #     RELEASE: ${{ inputs.release && '1' || '' }}
-      # - if: ${{ github.event_name != 'push' }}
-      #   name: Build samples
-      #   uses: ./build-samples
-      #   with:
-      #     arch: ${{ inputs.arch }}
-      #     toolchain: ${{ inputs.toolchain }}
-      #     kbuild-output: ${{ env.KBUILD_OUTPUT }}
-      #     max-make-jobs: 32
-      #     llvm-version: ${{ inputs.llvm-version }}
+          kbuild-output: ${{ env.KBUILD_OUTPUT }}
+
+      - name: Put something in KBUILD_OUTPUT to trigger caching
+        shell: bash
+        run: |
+          echo "kernel" > $KBUILD_OUTPUT/output.txt
+
