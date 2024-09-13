@@ -1,5 +1,5 @@
 name: 'Prepare incremental kernel build'
-description: 'Pull cached kernel build output from previous runs and prepare them for incremental build'
+description: 'Pull cached kernel build output from previous runs and prepare the repo for incremental build'
 inputs:
   repo-root:
     description: "Root of the kernel repository"
@@ -26,11 +26,13 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Get commit meta-data
+
+    - name: Get commit meta-data for cache lookup
       id: get-commit-metadata
       shell: bash
       working-directory: ${{ inputs.repo-root }}
       run: ${GITHUB_ACTION_PATH}/get-commit-metadata.sh ${{ inputs.base-branch }}
+
     - name: Pull recent KBUILD_OUTPUT contents
       uses: actions/cache@v4
       with:
@@ -40,6 +42,7 @@ runs:
           kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-${{ steps.get-commit-metadata.outputs.timestamp }}-
           kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-
           kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-
+
     - name: Prepare incremental build
       shell: bash
       env:
