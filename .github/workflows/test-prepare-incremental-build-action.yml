@@ -1,7 +1,6 @@
 name: Workflow to test local prepare-incremental-build
 
 on:
-  workflow_dispatch:
   push:
     inputs:
       arch:
