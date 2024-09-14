@@ -45,7 +45,7 @@ jobs:
         KERNEL_REPO: ${{ inputs.kernel-repo || 'kernel-patches/bpf' }}
         KERNEL_BRANCH: ${{ inputs.kernel-branch || 'bpf-next' }}
         REPO_ROOT: ${{ github.workspace }}/linux
-        KBUILD_OUTPUT: kbuild-output/
+        KBUILD_OUTPUT: kbuild-output
     steps:
 
       - uses: actions/checkout@v4
@@ -58,7 +58,8 @@ jobs:
           repository: kernel-patches/bpf
           path: ${{ env.REPO_ROOT }}
 
-      - uses: ./prepare-incremental-build
+      - name: Run prepare-incremental-build action
+        uses: ./prepare-incremental-build
         with:
           repo-root: ${{ env.REPO_ROOT }}
           base-branch: ${{ env.KERNEL_BRANCH }}
@@ -69,5 +70,6 @@ jobs:
       - name: Put something in KBUILD_OUTPUT to trigger caching
         shell: bash
         run: |
-          echo "$ARCH $TOOLCHAIN_FULL $KERNEL" > $KBUILD_OUTPUT/output.txt
+          mkdir -p $KBUILD_OUTPUT/path/to
+          echo "$ARCH $TOOLCHAIN_FULL $KERNEL" > $KBUILD_OUTPUT/path/to/output.txt
 
