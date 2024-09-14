@@ -2,6 +2,7 @@ name: Workflow to test local prepare-incremental-build
 
 on:
   push:
+  workflow_dispatch:
     inputs:
       arch:
         required: true
@@ -13,41 +14,27 @@ on:
         type: string
         description: The toolchain and for llvm, its version, e.g gcc, llvm-15
         default: llvm-17
-      toolchain:
-        required: true
-        type: string
-        description: The toolchain, e.g gcc, llvm
-        default: llvm
       runs_on:
         required: true
         type: string
         description: The runners to run the test on. This is a json string representing an array of labels.
         default: ubuntu-24.04
-      llvm-version:
-        required: true
-        type: string
-        description: The version of LLVM used to build selftest.... for llvm toolchain, this should match the one from toolchain_full, for gcc it is an arbritrary version we decide to build selftests against.
-        default: '17'
       kernel:
         required: true
         type: string
         description: The kernel to run the test against. For KPD this is always LATEST, which runs against a newly built kernel.
         default: LATEST
-      release:
-        required: false
-        type: boolean
-        description: Build selftest with -O2 optimization
-        default: false
 
 jobs:
   test-job:
     name: Test prepare-incremental-build action
-    runs-on: ${{ inputs.runs_on }}
+    runs-on: ${{ inputs.runs_on || 'ubuntu-24.04' }}
     timeout-minutes: 100
     env:
-        KERNEL: ${{ inputs.kernel }}
+        ARCH: ${{ inputs.arch || 'x86_64' }}
+        TOOLCHAIN_FULL: ${{ inputs.toolchain_full || 'llvm-17' }}
+        KERNEL: ${{ inputs.kernel || 'LATEST' }}
         REPO_ROOT: ${{ github.workspace }}/kernel-patches/bpf
-        REPO_PATH: kernel-patches/bpf
         KBUILD_OUTPUT: kbuild-output/
         BASE_BRANCH: >-
           ${{ github.event_name == 'push' && github.ref_name
@@ -77,5 +64,5 @@ jobs:
       - name: Put something in KBUILD_OUTPUT to trigger caching
         shell: bash
         run: |
-          echo "kernel" > $KBUILD_OUTPUT/output.txt
+          echo "$ARCH $TOOLCHAIN_FULL $KERNEL" > $KBUILD_OUTPUT/output.txt
 
