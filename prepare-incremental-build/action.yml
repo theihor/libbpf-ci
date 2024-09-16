@@ -2,13 +2,11 @@ name: 'Prepare incremental kernel build'
 description: 'Pull cached kernel build output from previous runs and prepare the repo for incremental build'
 inputs:
   repo-root:
-    description: "Root of the kernel repository"
+    description: "Path to the root of the kernel repository"
     required: true
-    default: ${{ github.workspace }}
   base-branch:
-    description: "Base branch for cache lookup"
+    description: "Branch for cache lookup"
     required: true
-    default: bpf-next_base
   arch:
     required: true
     type: string
