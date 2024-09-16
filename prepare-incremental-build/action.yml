@@ -19,7 +19,6 @@ inputs:
     required: true
     type: string
     description: "Path to KBUILD_OUTPUT"
-    default: kbuild-output
 
 runs:
   using: "composite"
@@ -27,8 +26,8 @@ runs:
 
     - name: Get commit meta-data for cache lookup
       id: get-commit-metadata
-      shell: bash
       working-directory: ${{ inputs.repo-root }}
+      shell: bash
       run: ${GITHUB_ACTION_PATH}/get-commit-metadata.sh ${{ inputs.base-branch }}
 
     - name: Pull recent KBUILD_OUTPUT contents
@@ -42,9 +41,9 @@ runs:
           kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-
 
     - name: Prepare incremental build
-      shell: bash
+      working-directory: ${{ inputs.repo-root }}
       env:
         KBUILD_OUTPUT: ${{ inputs.kbuild-output }}
-      working-directory: ${{ inputs.repo-root }}
+      shell: bash
       run: ${GITHUB_ACTION_PATH}/prepare-incremental-builds.sh ${{ steps.get-commit-metadata.outputs.commit }}
 

@@ -48,7 +48,7 @@ jobs:
         KERNEL_REPO: ${{ inputs.kernel-repo || 'kernel-patches/bpf' }}
         KERNEL_BRANCH: ${{ inputs.kernel-branch || 'bpf-next' }}
         REPO_ROOT: ${{ github.workspace }}/linux
-        KBUILD_OUTPUT: kbuild-output
+        KBUILD_OUTPUT: ${{ github.workspace }}/kbuild-output
     steps:
 
       - uses: actions/checkout@v4
