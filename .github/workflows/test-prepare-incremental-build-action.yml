@@ -10,23 +10,15 @@ on:
       arch:
         required: true
         type: string
-        description: The architecture to build against, e.g x86_64, aarch64, s390x...
         default: x86_64
       toolchain_full:
         required: true
         type: string
-        description: The toolchain and for llvm, its version, e.g gcc, llvm-15
         default: llvm-17
       runs_on:
         required: true
         type: string
-        description: The runners to run the test on. This is a json string representing an array of labels.
         default: ubuntu-24.04
-      kernel:
-        required: true
-        type: string
-        description: The kernel to run the test against. For KPD this is always LATEST, which runs against a newly built kernel.
-        default: LATEST
       kernel-repo:
         required: true
         type: string
@@ -44,7 +36,6 @@ jobs:
     env:
         ARCH: ${{ inputs.arch || 'x86_64' }}
         TOOLCHAIN_FULL: ${{ inputs.toolchain_full || 'llvm-17' }}
-        KERNEL: ${{ inputs.kernel || 'LATEST' }}
         KERNEL_REPO: ${{ inputs.kernel-repo || 'kernel-patches/bpf' }}
         KERNEL_BRANCH: ${{ inputs.kernel-branch || 'bpf-next' }}
         REPO_ROOT: ${{ github.workspace }}/linux
@@ -55,10 +46,9 @@ jobs:
         name: Checkout libbpf/ci
 
       - uses: actions/checkout@v4
-        name: Checkout kernel-patches/bpf
+        name: Checkout ${{ env.KERNEL_REPO }}
         with:
-          fetch-depth: 5
-          repository: kernel-patches/bpf
+          repository: ${{ env.KERNEL_REPO }}
           path: ${{ env.REPO_ROOT }}
 
       - name: Run prepare-incremental-build action
@@ -69,6 +59,7 @@ jobs:
           arch: ${{ env.ARCH }}
           toolchain_full: ${{ env.TOOLCHAIN_FULL }}
           kbuild-output: ${{ env.KBUILD_OUTPUT }}
+          cache-key-prefix: 'test-prepare-incremental-build-action'
 
       - name: Put something in KBUILD_OUTPUT to trigger caching
         shell: bash

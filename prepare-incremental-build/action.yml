@@ -19,6 +19,10 @@ inputs:
     required: true
     type: string
     description: "Path to KBUILD_OUTPUT"
+  cache-key-prefix:
+    required: false
+    type: string
+    default: "kbuild-output"
 
 runs:
   using: "composite"
@@ -34,11 +38,11 @@ runs:
       uses: actions/cache@v4
       with:
         path: ${{ inputs.kbuild-output }}
-        key: kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-${{ steps.get-commit-metadata.outputs.timestamp }}-${{ steps.get-commit-metadata.outputs.commit }}
+        key: ${{ inputs.cache-key-prefix }}-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-${{ steps.get-commit-metadata.outputs.timestamp }}-${{ steps.get-commit-metadata.outputs.commit }}
         restore-keys: |
-          kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-${{ steps.get-commit-metadata.outputs.timestamp }}-
-          kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-
-          kbuild-output-${{ inputs.arch }}-${{ inputs.toolchain_full }}-
+          ${{ inputs.cache-key-prefix }}-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-${{ steps.get-commit-metadata.outputs.timestamp }}-
+          ${{ inputs.cache-key-prefix }}-${{ inputs.arch }}-${{ inputs.toolchain_full }}-${{ steps.get-commit-metadata.outputs.branch }}-
+          ${{ inputs.cache-key-prefix }}-${{ inputs.arch }}-${{ inputs.toolchain_full }}-
 
     - name: Prepare incremental build
       working-directory: ${{ inputs.repo-root }}
