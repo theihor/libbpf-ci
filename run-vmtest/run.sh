@@ -5,12 +5,15 @@ trap 'exit 2' ERR
 
 source $(cd $(dirname $0) && pwd)/../helpers.sh
 
+# clear exitstatus file
+echo -n "" > exitstatus
+
 foldable start bpftool_checks "Running bpftool checks..."
 bpftool_exitstatus=0
 
 # bpftool checks are aimed at checking type names, documentation, shell
 # completion etc. against the current kernel, so only run on LATEST.
-if [[ "${KERNEL}" = 'LATEST' ]]; then
+if [[ "${KERNEL}" = 'LATEST' && $(basename $VMTEST_SCRIPT) == "vmtest_selftests.sh" ]]; then
 	# "&& true" does not change the return code (it is not executed if the
 	# Python script fails), but it prevents the trap on ERR set at the top
 	# of this file to trigger on failure.
@@ -21,11 +24,11 @@ if [[ "${KERNEL}" = 'LATEST' ]]; then
 	else
 		echo "bpftool checks returned ${bpftool_exitstatus}."
 	fi
+	echo "bpftool:${bpftool_exitstatus}" >> exitstatus
 else
 	echo "bpftool checks skipped."
 fi
 
-bpftool_exitstatus="bpftool:${bpftool_exitstatus}"
 foldable end bpftool_checks
 
 foldable start vmtest "Starting virtual machine..."
@@ -33,21 +36,17 @@ foldable start vmtest "Starting virtual machine..."
 # Tests may be comma-separated. vmtest_selftest expect them to come from CLI space-separated.
 T=$(echo ${KERNEL_TEST} | tr -s ',' ' ')
 # HACK: We need to unmount /tmp to access /tmp from the container....
-vmtest -k "${VMLINUZ}" --kargs "panic=-1 sysctl.vm.panic_on_oom=1" -
-# "umount /tmp && \
-#        	/bin/mount bpffs /sys/fs/bpf -t bpf && \
-#            ip link set lo up && \
-#            cd '${GITHUB_WORKSPACE}'"
-# ./ci/vmtest/vmtest_selftests.sh ${T}"
-
-exit 0
+vmtest -k "${VMLINUZ}" --kargs "panic=-1 sysctl.vm.panic_on_oom=1" "umount /tmp && \
+        	/bin/mount bpffs /sys/fs/bpf -t bpf && \
+            ip link set lo up && \
+            cd '${GITHUB_WORKSPACE}' && \
+            ${VMTEST_SCRIPT} ${T}"
 
 foldable end vmtest
 
 foldable start collect_status "Collecting exit status"
 
-exitfile="${bpftool_exitstatus}\n"
-exitfile+="$(cat exitstatus 2>/dev/null)"
+exitfile="$(cat exitstatus 2>/dev/null)"
 exitstatus="$(echo -e "$exitfile" | awk --field-separator ':' \
   'BEGIN { s=0 } { if ($2) {s=1} } END { print s }')"
 

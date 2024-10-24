@@ -32,7 +32,7 @@ export GITHUB_STEP_SUMMARY=.github-step-summary
 
 export KERNEL=LATEST
 export KERNEL_ROOT=$GITHUB_REPOSITORY
-export KERNEL_TEST="test_progs"
+
 
 # echo "build_id" > $KERNEL_ROOT/selftests/bpf/ALLOWLIST
 
@@ -41,9 +41,16 @@ export VMLINUZ=$KBUILD_OUTPUT/arch/x86/boot/bzImage
 
 export PROJECT_NAME="$KERNEL_ROOT"
 
+export VMTEST_SCRIPT="$ACTIONS/ci/vmtest/sched_ext_selftests.sh"
+export KERNEL_TEST="" #"-t dsp_local"
+# export VMTEST_SCRIPT="$ACTIONS/ci/vmtest/vmtest_selftests.sh"
+# export KERNEL_TEST="test_progs"
+
+
+
 mkdir -p bin
 if ! [ -f bin/vmtest ]; then
-  curl -L https://github.com/danobi/vmtest/releases/download/v0.12.0/vmtest-$(uname -m) -o bin/vmtest
+  curl -L https://github.com/danobi/vmtest/releases/download/v0.14.0/vmtest-$(uname -m) -o bin/vmtest
   chmod 755 bin/vmtest
 fi
 
