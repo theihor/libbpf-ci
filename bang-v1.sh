@@ -8,6 +8,7 @@ set -x -euo pipefail
 #      qemu-kvm qemu-utils qemu-system-x86 qemu-guest-agent
 
 export GITHUB_REPOSITORY="$(realpath $1)"
+export ACTIONS="$(realpath $2)"
 
 if ! [ -d $GITHUB_REPOSITORY ]; then
   echo "$GITHUB_REPOSITORY must be a directory"
@@ -25,20 +26,20 @@ if [ ! -d selftests ]; then
 fi
 popd
 
-export GITHUB_WORKSPACE=$(pwd)
+export GITHUB_WORKSPACE=$GITHUB_REPOSITORY
 export GITHUB_ACTION_PATH=$(realpath run-vmtest)
 export GITHUB_STEP_SUMMARY=.github-step-summary
 
 export KERNEL=LATEST
-export KERNEL_ROOT=$(realpath bpf-next)
+export KERNEL_ROOT=$GITHUB_REPOSITORY
 export KERNEL_TEST="test_progs"
 
-echo "build_id" > $KERNEL_ROOT/selftests/bpf/ALLOWLIST
+# echo "build_id" > $KERNEL_ROOT/selftests/bpf/ALLOWLIST
 
 export KBUILD_OUTPUT=$KERNEL_ROOT/kbuild-output
 export VMLINUZ=$KBUILD_OUTPUT/arch/x86/boot/bzImage
 
-export PROJECT_NAME="bpf-next"
+export PROJECT_NAME="$KERNEL_ROOT"
 
 mkdir -p bin
 if ! [ -f bin/vmtest ]; then
@@ -48,5 +49,5 @@ fi
 
 export PATH=$(pwd)/bin:$PATH
 
-bash run-vmtest/run.sh | tee 
+bash $ACTIONS/run-vmtest/run.sh | tee
 
