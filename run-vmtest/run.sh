@@ -3,17 +3,28 @@
 set -euo pipefail
 trap 'exit 2' ERR
 
-source $(cd $(dirname $0) && pwd)/../helpers.sh
+source "${GITHUB_ACTION_PATH}/../helpers.sh"
+
+RUN_BPFTOOL_CHECKS=
+
+if [[ "$KERNEL_TEST" != "sched_ext" ]]; then
+	VMTEST_SCRIPT="${GITHUB_ACTION_PATH}/../ci/vmtest/vmtest_selftests.sh"
+	if [[ "${KERNEL}" = 'LATEST' ]]; then
+		RUN_BPFTOOL_CHECKS=true
+	fi
+else
+	VMTEST_SCRIPT="${GITHUB_ACTION_PATH}/../ci/vmtest/sched_ext_selftests.sh"
+fi
 
 # clear exitstatus file
 echo -n "" > exitstatus
 
 foldable start bpftool_checks "Running bpftool checks..."
-bpftool_exitstatus=0
 
 # bpftool checks are aimed at checking type names, documentation, shell
 # completion etc. against the current kernel, so only run on LATEST.
-if [[ "${KERNEL}" = 'LATEST' && $(basename $VMTEST_SCRIPT) == "vmtest_selftests.sh" ]]; then
+if [[ -n "${RUN_BPFTOOL_CHECKS}" ]]; then
+	bpftool_exitstatus=0
 	# "&& true" does not change the return code (it is not executed if the
 	# Python script fails), but it prevents the trap on ERR set at the top
 	# of this file to trigger on failure.
@@ -35,12 +46,11 @@ foldable start vmtest "Starting virtual machine..."
 
 # Tests may be comma-separated. vmtest_selftest expect them to come from CLI space-separated.
 T=$(echo ${KERNEL_TEST} | tr -s ',' ' ')
-# HACK: We need to unmount /tmp to access /tmp from the container....
-vmtest -k "${VMLINUZ}" --kargs "panic=-1 sysctl.vm.panic_on_oom=1" "umount /tmp && \
-        	/bin/mount bpffs /sys/fs/bpf -t bpf && \
-            ip link set lo up && \
-            cd '${GITHUB_WORKSPACE}' && \
-            ${VMTEST_SCRIPT} ${T}"
+vmtest -k "${VMLINUZ}" --kargs "panic=-1 sysctl.vm.panic_on_oom=1" \
+       "/bin/mount bpffs /sys/fs/bpf -t bpf && \
+        ip link set lo up                   && \
+        cd '${GITHUB_WORKSPACE}'            && \
+        ${VMTEST_SCRIPT} ${T}"
 
 foldable end vmtest
 
