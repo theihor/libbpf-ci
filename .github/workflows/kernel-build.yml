@@ -57,11 +57,16 @@ jobs:
         REPO_PATH: ""
         REPO_ROOT: ${{ github.workspace }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout ${{ github.repository }}
+        uses: actions/checkout@v4
         # We fetch an actual bit of history here to facilitate incremental
         # builds (which may check out some earlier upstream change).
         with:
-          fetch-depth: 50
+          fetch-depth: ${{ github.repository == 'kernel-patches/bpf' && 50 || 1 }}
+      - name: Checkout libbpf/ci
+        uses: actions/checkout@v4
+        with:
+          repository: libbpf/ci
       - if: ${{ inputs.download_sources }}
         name: Download bpf-next tree
         uses: ./get-linux-source
