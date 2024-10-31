@@ -1,1 +1,6 @@
-docker build -f runner/Dockerfile -t bpfci-runner .
+#!/bin/bash
+
+tag=$(echo "$(pwd)" | sed "s:^$HOME/::" | tr '/' '-')
+
+docker build -f Dockerfile -t $tag .
+

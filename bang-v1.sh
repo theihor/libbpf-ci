@@ -2,7 +2,7 @@
 
 set -x -euo pipefail
 
-# sudo apt-get update && 
+# sudo apt-get update &&
 # sudo apt-get install -y \
 #      curl cpu-checker ethtool keyutils iptables gawk \
 #      qemu-kvm qemu-utils qemu-system-x86 qemu-guest-agent
@@ -45,8 +45,6 @@ export VMTEST_SCRIPT="$ACTIONS/ci/vmtest/sched_ext_selftests.sh"
 export KERNEL_TEST="" #"-t dsp_local"
 # export VMTEST_SCRIPT="$ACTIONS/ci/vmtest/vmtest_selftests.sh"
 # export KERNEL_TEST="test_progs"
-
-
 
 mkdir -p bin
 if ! [ -f bin/vmtest ]; then
