@@ -12,6 +12,11 @@ ARG LLVM_VERSION
 
 RUN groupadd --gid $C_GID $C_GROUP && adduser --gid $C_GID --uid $C_UID $C_USER
 
+# Give $C_USER passwordless sudo permissions
+RUN mkdir -p /etc/sudoers.d && \
+    echo $C_USER "ALL=(ALL) NOPASSWD:ALL" \
+    > /etc/sudoers.d/$C_USER
+
 # LABEL maintainer="sunyucong@gmail.com"
 
 RUN apt-get update && apt-get install -y \
@@ -27,24 +32,25 @@ RUN echo "deb https://apt.llvm.org/${UBUNTU_VERSION}/ llvm-toolchain-${UBUNTU_VE
 RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
 RUN apt-get update && apt-get install -y clang lld llvm
 
-# RUN git clone --depth=1 https://github.com/kernel-patches/bpf.git /opt/linux
+# RUN git clone --depth=1 https://github.com/kernel-patches/bpf.git /ci/linux
 
-# RUN git clone https://github.com/libbpf/ci.git /opt/actions
-# ENV GITHUB_ACTION_PATH=/opt/actions
-COPY helpers.sh /opt/actions/helpers.sh
-COPY setup-build-env /opt/actions/setup-build-env
+# RUN git clone https://github.com/libbpf/ci.git /ci/actions
+# ENV GITHUB_ACTION_PATH=/ci/actions
+COPY helpers.sh /ci/actions/helpers.sh
+COPY setup-build-env /ci/actions/setup-build-env
 
-WORKDIR /opt/lib
+WORKDIR /ci/lib
 
 ENV LLVM_VERSION=${LLVM_VERSION}
-RUN /opt/actions/setup-build-env/install_clang.sh
+RUN /ci/actions/setup-build-env/install_clang.sh
 
-ENV PAHOLE_BRANCH=c2f89dab3f2b0ebb53bab3ed8be32f41cb743c37
-RUN /opt/actions/setup-build-env/build_pahole.sh
+# c2f89dab3f2b0ebb53bab3ed8be32f41cb743c37
+ENV PAHOLE_BRANCH=tmp.master
+RUN /ci/actions/setup-build-env/build_pahole.sh
 
-RUN rm -rf /opt/actions
+RUN rm -rf /ci/actions
 
-ENV GITHUB_WORKSPACE=/opt/workspace
+ENV GITHUB_WORKSPACE=/ci/workspace
 WORKDIR $GITHUB_WORKSPACE
 
 # RUN git fetch --depth=100 origin pull/7933/head:ci-build-id-debug \

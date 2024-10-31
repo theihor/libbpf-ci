@@ -2,14 +2,14 @@
 
 set -x -euo pipefail
 
-# sudo apt-get update && 
+# sudo apt-get update &&
 # sudo apt-get install -y \
 #      curl cpu-checker ethtool keyutils iptables gawk \
 #      qemu-kvm qemu-utils qemu-system-x86 qemu-guest-agent
 
 export ACTIONS=/opt/actions
 
-export GITHUB_REPOSITORY=/opt/linux
+export GITHUB_REPOSITORY=/opt/workspace
 
 if ! [ -d $GITHUB_REPOSITORY ]; then
   echo "$GITHUB_REPOSITORY must be a directory"
@@ -45,5 +45,5 @@ fi
 
 export PATH=$(pwd)/bin:$PATH
 
-bash $ACTIONS/run-vmtest/run.sh | tee 
+bash $ACTIONS/run-vmtest/run.sh | tee
 

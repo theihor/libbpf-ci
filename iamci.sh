@@ -2,7 +2,11 @@
 
 set -x -euo pipefail
 
-repo_dir=$1
+repo=$1
+linux_repo=$2
+actions=${3:-"$(pwd)"}
+
+LLVM_VERSION=${LLVM_VERSION:-18}
 
 tag=$(echo "$(pwd)" | sed "s:^$HOME/::" | tr '/' '-')
 
@@ -11,7 +15,7 @@ docker build -t $tag                 \
        --build-arg C_GROUP=$(id -gn) \
        --build-arg C_UID=$(id -u)    \
        --build-arg C_USER=$(id -un)  \
-       --build-arg LLVM_VERSION=18   \
+       --build-arg LLVM_VERSION=$LLVM_VERSION   \
        .
 
 function docker_run {
@@ -19,12 +23,14 @@ function docker_run {
            --device=/dev/kvm \
            --cap-add ALL \
            --user "$(id -u):$(id -gn)" \
-           -v $(pwd):/opt/actions \
-           -v $(realpath $repo_dir):/opt/workspace \
+           -v $(realpath $linux_repo):/ci/workspace \
+           -v $(realpath $actions):/ci/actions \
            $tag
 }
 
 container_id=$(docker_run)
+
+# docker cp $(realpath $repo)/. $container_id:/ci/workspace/
 
 docker exec -it $container_id /bin/bash
 
