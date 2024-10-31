@@ -76,7 +76,6 @@ jobs:
         name: Move linux source in place
         shell: bash
         run: |
-          rm -rf .kernel/.git
           cp -rf .kernel/. .
           rm -rf .kernel
       - uses: ./prepare-incremental-build
