@@ -44,8 +44,9 @@ WORKDIR /ci/lib
 ENV LLVM_VERSION=${LLVM_VERSION}
 RUN /ci/actions/setup-build-env/install_clang.sh
 
-# c2f89dab3f2b0ebb53bab3ed8be32f41cb743c37
-ENV PAHOLE_BRANCH=tmp.master
+# 
+ENV PAHOLE_BRANCH=c2f89dab3f2b0ebb53bab3ed8be32f41cb743c37
+# ENV PAHOLE_BRANCH=tmp.master
 RUN /ci/actions/setup-build-env/build_pahole.sh
 
 RUN rm -rf /ci/actions

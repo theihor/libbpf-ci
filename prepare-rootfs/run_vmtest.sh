@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eu
+set -x -eu
 
 THISDIR="$(cd $(dirname $0) && pwd)"
 

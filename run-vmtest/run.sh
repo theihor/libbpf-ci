@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
+set -x -euo pipefail
 trap 'exit 2' ERR
 
 source "${GITHUB_ACTION_PATH}/../helpers.sh"

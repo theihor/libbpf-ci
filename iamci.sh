@@ -23,8 +23,9 @@ function docker_run {
            --device=/dev/kvm \
            --cap-add ALL \
            --user "$(id -u):$(id -gn)" \
-           -v $(realpath $linux_repo):/ci/workspace \
+           -v $(realpath $repo):/ci/workspace \
            -v $(realpath $actions):/ci/actions \
+           -v $(realpath $linux_repo):/ci/workspace/.kernel \
            $tag
 }
 
