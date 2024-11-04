@@ -6,8 +6,6 @@ set -x -euo pipefail
 
 clean=${1:-}
 
-
-
 export GITHUB_REPOSITORY=libbpf/libbpf
 
 export ACTIONS=/ci/actions
@@ -90,7 +88,7 @@ fi
 
 if [[ "$KERNEL" != "LATEST" ]]; then
     rm -f $GITHUB_WORKSPACE/vmlinux
-    export GITHUB_ACTION_PATH=$ACTIONS/download-vmlinux
+    # export GITHUB_ACTION_PATH=$ACTIONS/download-vmlinux
     # $GITHUB_ACTION_PATH/run.sh -k $KERNEL
     cp vmlinux.bak vmlinux
     # vmlinux="${GITHUB_WORKSPACE}/vmlinux"
@@ -142,7 +140,7 @@ export PROJECT_NAME=/mnt/vmtest
 
 mkdir -p bin
 if ! [ -f bin/vmtest ]; then
-  curl -L https://github.com/danobi/vmtest/releases/download/v0.14.0/vmtest-$(uname -m) -o bin/vmtest
+  curl -L https://github.com/danobi/vmtest/releases/download/v0.15.0/vmtest-$(uname -m) -o bin/vmtest
   chmod 755 bin/vmtest
 fi
 export PATH=bin:$PATH

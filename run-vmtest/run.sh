@@ -1,9 +1,14 @@
 #!/bin/bash
 
-set -x -euo pipefail
+set -euo pipefail
 trap 'exit 2' ERR
 
 source "${GITHUB_ACTION_PATH}/../helpers.sh"
+
+if [[ -z "${VMLINUZ}" || ! -f "${VMLINUZ}" ]]; then
+    image_name=$(make -C ${KERNEL_ROOT} -s image_name)
+    export VMLINUZ=$(realpath ${KERNEL_ROOT}/${image_name})
+fi
 
 RUN_BPFTOOL_CHECKS=
 
