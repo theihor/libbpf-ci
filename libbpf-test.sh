@@ -15,11 +15,11 @@ export GITHUB_WORKSPACE=/ci/workspace
 export KERNEL_ROOT=$GITHUB_WORKSPACE/.kernel
 
 export ARCH=x86_64
-export TARGET_ARCH=$ARCH
+# export TARGET_ARCH=$ARCH
 
 export GITHUB_ENV=$GITHUB_WORKSPACE/.github-env
 
-export KERNEL=4.9.0 # LATEST
+export KERNEL=LATEST # 4.9.0 # LATEST
 
 
 if [[ -n "$clean" ]]; then
@@ -71,14 +71,18 @@ cd $GITHUB_WORKSPACE/.kernel
 $ACTIONS/patch-kernel/patch_kernel.sh $GITHUB_WORKSPACE/ci/diffs
 cd $GITHUB_WORKSPACE
 
-if [[ "$KERNEL" == "LATEST" && ! -f "$GITHUB_WORKSPACE/vmlinux" ]]; then
-    source $GITHUB_WORKSPACE/ci/vmtest/helpers.sh
+#     - name: Prepare to build BPF selftests
+source $GITHUB_WORKSPACE/ci/vmtest/helpers.sh
+cd $GITHUB_WORKSPACE/.kernel
+cat tools/testing/selftests/bpf/config \
+    tools/testing/selftests/bpf/config.$ARCH \
+    > .config
+cat tools/testing/selftests/bpf/config.vm >> .config || :
+make olddefconfig && make prepare
+cd -
+
+if [[ "$KERNEL" == "LATEST" ]]; then
     cd $GITHUB_WORKSPACE/.kernel
-    cat tools/testing/selftests/bpf/config \
-        tools/testing/selftests/bpf/config.$ARCH \
-        > .config
-    cat tools/testing/selftests/bpf/config.vm >> .config || :
-    make olddefconfig && make prepare
     make -j $((4*$(nproc))) all # > /dev/null
     cp vmlinux $GITHUB_WORKSPACE
     cd -
@@ -87,7 +91,10 @@ fi
 if [[ "$KERNEL" != "LATEST" ]]; then
     rm -f $GITHUB_WORKSPACE/vmlinux
     export GITHUB_ACTION_PATH=$ACTIONS/download-vmlinux
-    $GITHUB_ACTION_PATH/run.sh -k $KERNEL
+    # $GITHUB_ACTION_PATH/run.sh -k $KERNEL
+    cp vmlinux.bak vmlinux
+    # vmlinux="${GITHUB_WORKSPACE}/vmlinux"
+    # zstd -d -i "${ARCH}/vmlinuz-${KERNEL}" -o "$vmlinux"
 fi
 
 # ./.github/actions/build-selftests
@@ -96,7 +103,7 @@ source $GITHUB_WORKSPACE/ci/vmtest/helpers.sh
 # export KERNEL=LATEST
 # export REPO_ROOT="${{ github.workspace }}"
 export REPO_PATH=.kernel
-export VMLINUX_BTF=$(realpath vmlinux)
+export VMLINUX_BTF=$GITHUB_WORKSPACE/vmlinux
 # export LLVM_VERSION="${{ inputs.llvm-version }}"
 if [[ ! -d $GITHUB_WORKSPACE/selftests ]]; then
     $GITHUB_WORKSPACE/.github/actions/build-selftests/build_selftests.sh
