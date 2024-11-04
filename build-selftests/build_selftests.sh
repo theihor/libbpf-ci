@@ -31,11 +31,13 @@ if [ -f "${PREPARE_SELFTESTS_SCRIPT}" ]; then
 	(cd "${REPO_ROOT}/${REPO_PATH}/tools/testing/selftests/bpf" && ${PREPARE_SELFTESTS_SCRIPT})
 fi
 
-if [[ "${KERNEL}" = 'LATEST' ]]; then
-	VMLINUX_H=
-else
-	VMLINUX_H=${THISDIR}/vmlinux.h
-fi
+VMLINUX_H=${VMLINUX_H:-}
+
+# if [[ "${KERNEL}" = 'LATEST' ]]; then
+# 	VMLINUX_H=
+# else
+# 	VMLINUX_H=${THISDIR}/vmlinux.h
+# fi
 
 cd ${REPO_ROOT}/${REPO_PATH}
 
@@ -52,7 +54,8 @@ EOF
 SELF_OPTS=$(cat <<EOF
 	-C ${REPO_ROOT}/${REPO_PATH}/tools/testing/selftests/bpf
 EOF
-)
+         )
+
 make ${MAKE_OPTS} headers
 make ${MAKE_OPTS} ${SELF_OPTS} clean
 make ${MAKE_OPTS} ${SELF_OPTS} -j $(kernel_build_make_jobs)

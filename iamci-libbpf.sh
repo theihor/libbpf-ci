@@ -17,12 +17,11 @@ docker build -t $tag                 \
        --build-arg C_USER=$(id -un)  \
        --build-arg LLVM_VERSION=$LLVM_VERSION   \
        .
-
+#            --user "$(id -u):$(id -gn)" 
 function docker_run {
     docker run -d --privileged \
            --device=/dev/kvm \
            --cap-add ALL \
-           --user "$(id -u):$(id -gn)" \
            -v $(realpath $libbpf_repo):/ci/workspace \
            -v $(realpath $actions):/ci/actions \
            -v $(realpath $linux_repo):/ci/workspace/.kernel \

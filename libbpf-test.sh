@@ -8,6 +8,8 @@ clean=${1:-}
 
 export GITHUB_REPOSITORY=libbpf/libbpf
 
+export KERNEL=4.9.0 # LATEST
+
 export ACTIONS=/ci/actions
 export GITHUB_WORKSPACE=/ci/workspace
 export KERNEL_ROOT=$GITHUB_WORKSPACE/.kernel
@@ -16,8 +18,6 @@ export ARCH=x86_64
 # export TARGET_ARCH=$ARCH
 
 export GITHUB_ENV=$GITHUB_WORKSPACE/.github-env
-
-export KERNEL=LATEST # 4.9.0 # LATEST
 
 
 if [[ -n "$clean" ]]; then
@@ -102,11 +102,22 @@ source $GITHUB_WORKSPACE/ci/vmtest/helpers.sh
 # export REPO_ROOT="${{ github.workspace }}"
 export REPO_PATH=.kernel
 export VMLINUX_BTF=$GITHUB_WORKSPACE/vmlinux
-# export LLVM_VERSION="${{ inputs.llvm-version }}"
-if [[ ! -d $GITHUB_WORKSPACE/selftests ]]; then
-    $GITHUB_WORKSPACE/.github/actions/build-selftests/build_selftests.sh
+export TOOLCHAIN=llvm
+if [[ "${KERNEL}" = 'LATEST' ]]; then
+	export VMLINUX_H=
+else
+	export VMLINUX_H=$GITHUB_WORKSPACE/.github/actions/build-selftests/vmlinux.h
 fi
 
+# export LLVM_VERSION="${{ inputs.llvm-version }}"
+if [[ ! -d $GITHUB_WORKSPACE/selftests ]]; then
+    PREPARE_SELFTESTS_SCRIPT=${GITHUB_WORKSPACE}/.github/build-selftests/prepare_selftests-${KERNEL}.sh
+    if [ -f "${PREPARE_SELFTESTS_SCRIPT}" ]; then
+	(cd "${GITHUB_WORKSPACE}/.kernel/tools/testing/selftests/bpf" && ${PREPARE_SELFTESTS_SCRIPT})
+    fi
+    $ACTIONS/build-selftests/build_selftests.sh $ARCH $KERNEL $TOOLCHAIN $(realpath .kernel/kbuild-output)
+    cp -R $GITHUB_WORKSPACE/.kernel/tools/testing/selftests $GITHUB_WORKSPACE/selftests
+fi
 
 # # libbpf/ci/prepare-rootfs@main
 # export PROJECT_NAME=libbpf
@@ -133,17 +144,20 @@ if [[ "$KERNEL" == "LATEST" ]]; then
     image_name=$(make -C $KERNEL_ROOT -s image_name)
     export VMLINUZ=$(realpath $KERNEL_ROOT/$image_name)
 else
-    export VMLINUZ=$GITHUB_WORKSPACE/vmlinux
+    export VMLINUZ=$GITHUB_WORKSPACE/$ARCH/vmlinuz-$KERNEL
 fi
 
-export PROJECT_NAME=/mnt/vmtest
+# export PROJECT_NAME=/mnt/vmtest
 
 mkdir -p bin
 if ! [ -f bin/vmtest ]; then
   curl -L https://github.com/danobi/vmtest/releases/download/v0.15.0/vmtest-$(uname -m) -o bin/vmtest
   chmod 755 bin/vmtest
 fi
-export PATH=bin:$PATH
+export PATH=$GITHUB_WORKSPACE/bin:$PATH
 
-$GITHUB_ACTION_PATH/run.sh | tee
+export VMTEST_SCRIPT=$GITHUB_WORKSPACE/ci/vmtest/run_selftests.sh
+export ROOTFS=$GITHUB_WORKSPACE/rootfs
+
+sudo -E PATH=$PATH $GITHUB_ACTION_PATH/run.sh | tee
 
