@@ -8,7 +8,7 @@ clean=${1:-}
 
 export GITHUB_REPOSITORY=libbpf/libbpf
 
-export KERNEL=4.9.0 # LATEST
+export KERNEL=LATEST # 4.9.0
 
 export ACTIONS=/ci/actions
 export GITHUB_WORKSPACE=/ci/workspace
@@ -115,7 +115,7 @@ if [[ ! -d $GITHUB_WORKSPACE/selftests ]]; then
     if [ -f "${PREPARE_SELFTESTS_SCRIPT}" ]; then
 	(cd "${GITHUB_WORKSPACE}/.kernel/tools/testing/selftests/bpf" && ${PREPARE_SELFTESTS_SCRIPT})
     fi
-    $ACTIONS/build-selftests/build_selftests.sh $ARCH $KERNEL $TOOLCHAIN $(realpath .kernel/kbuild-output)
+    $ACTIONS/build-selftests/build_selftests.sh $ARCH $KERNEL $TOOLCHAIN $(realpath .kernel)
     cp -R $GITHUB_WORKSPACE/.kernel/tools/testing/selftests $GITHUB_WORKSPACE/selftests
 fi
 
@@ -138,7 +138,7 @@ fi
 # $GITHUB_ACTION_PATH/run.sh
 
 export GITHUB_ACTION_PATH=$ACTIONS/run-vmtest
-export KERNEL_TEST= # "test_progs test_progs-no_alu32 test_verifier"
+export KERNEL_TEST="test_progs_no_alu32" # "test_progs test_progs-no_alu32 test_verifier"
 
 if [[ "$KERNEL" == "LATEST" ]]; then
     image_name=$(make -C $KERNEL_ROOT -s image_name)
@@ -147,7 +147,6 @@ else
     export VMLINUZ=$GITHUB_WORKSPACE/$ARCH/vmlinuz-$KERNEL
 fi
 
-# export PROJECT_NAME=/mnt/vmtest
 
 mkdir -p bin
 if ! [ -f bin/vmtest ]; then
@@ -156,8 +155,27 @@ if ! [ -f bin/vmtest ]; then
 fi
 export PATH=$GITHUB_WORKSPACE/bin:$PATH
 
-export VMTEST_SCRIPT=$GITHUB_WORKSPACE/ci/vmtest/run_selftests.sh
-export ROOTFS=$GITHUB_WORKSPACE/rootfs
+# export VMTEST_SCRIPT=$GITHUB_WORKSPACE/ci/vmtest/run_selftests.sh
+export QEMU_ROOTFS=$GITHUB_WORKSPACE/rootfs
+# export PROJECT_NAME=/mnt/vmtest
 
-sudo -E PATH=$PATH $GITHUB_ACTION_PATH/run.sh | tee
+# sudo -E PATH=$PATH
+
+export ALLOWLIST_FILE=/tmp/.allowlist
+cat "$GITHUB_WORKSPACE/selftests/bpf/ALLOWLIST" \
+    "$GITHUB_WORKSPACE/selftests/bpf/ALLOWLIST.${ARCH}" \
+    "$GITHUB_WORKSPACE/ci/vmtest/configs/ALLOWLIST" \
+    "$GITHUB_WORKSPACE/ci/vmtest/configs/ALLOWLIST-${KERNEL}" \
+    "$GITHUB_WORKSPACE/ci/vmtest/configs/ALLOWLIST-${KERNEL}.${ARCH}" \
+    2> /dev/null > "${ALLOWLIST_FILE}" || true
+
+export DENYLIST_FILE=/tmp/.denylist
+cat "$GITHUB_WORKSPACE/selftests/bpf/DENYLIST" \
+    "$GITHUB_WORKSPACE/selftests/bpf/DENYLIST.${ARCH}" \
+    "$GITHUB_WORKSPACE/ci/vmtest/configs/DENYLIST" \
+    "$GITHUB_WORKSPACE/ci/vmtest/configs/DENYLIST-${KERNEL}" \
+    "$GITHUB_WORKSPACE/ci/vmtest/configs/DENYLIST-${KERNEL}.${ARCH}" \
+    2> /dev/null > "${DENYLIST_FILE}" || true
+
+$GITHUB_ACTION_PATH/run.sh | cat
 

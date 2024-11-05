@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -x -euo pipefail
+set -euo pipefail
 trap 'exit 2' ERR
 
 source "${GITHUB_ACTION_PATH}/../helpers.sh"
@@ -10,18 +10,24 @@ if [[ -z "${VMLINUZ}" || ! -f "${VMLINUZ}" ]]; then
     export VMLINUZ=$(realpath ${KERNEL_ROOT}/${image_name})
 fi
 
-RUN_BPFTOOL_CHECKS=
+RUN_BPFTOOL_CHECKS=${RUN_BPFTOOL_CHECKS:-}
+if [[ -z "${RUN_BPFTOOL_CHECKS}" \
+          && "${KERNEL}" = 'LATEST' \
+          && "$KERNEL_TEST" != "sched_ext" ]];
+then
+    RUN_BPFTOOL_CHECKS=true
+fi
 
-# export VMTEST_SCRIPT=${VMTEST_SCRIPT:-}
+VMTEST_SCRIPT=${VMTEST_SCRIPT:-}
+if [[ -z "$VMTEST_SCRIPT" \
+          && "$KERNEL_TEST" != "sched_ext" ]];
+then
+	VMTEST_SCRIPT="${GITHUB_ACTION_PATH}/run-bpf-selftests.sh"
+else
+	VMTEST_SCRIPT="${GITHUB_ACTION_PATH}/run-scx-selftests.sh"
+fi
 
-# if [[ -n $VMTEST_SCRIPT && "$KERNEL_TEST" != "sched_ext" ]]; then
-# 	VMTEST_SCRIPT="${GITHUB_ACTION_PATH}/../ci/vmtest/vmtest_selftests.sh"
-# 	if [[ "${KERNEL}" = 'LATEST' ]]; then
-# 		RUN_BPFTOOL_CHECKS=true
-# 	fi
-# else
-# 	VMTEST_SCRIPT="${GITHUB_ACTION_PATH}/../ci/vmtest/sched_ext_selftests.sh"
-# fi
+# export DEPLOYMENT=$(if [[ "$GITHUB_REPOSITORY" == "kernel-patches/bpf" ]]; then echo "prod"; else echo "rc"; fi)
 
 # clear exitstatus file
 echo -n "" > exitstatus
@@ -53,13 +59,16 @@ foldable start vmtest "Starting virtual machine..."
 
 # Tests may be comma-separated. vmtest_selftest expect them to come from CLI space-separated.
 
+# -r "${QEMU_ROOTFS}"
+       # "mkdir -p /ci/workspace && \
+       #  /bin/mount --bind /mnt/vmtest /ci/workspace && \
+
 T=$(echo ${KERNEL_TEST} | tr -s ',' ' ')
-vmtest -k "${VMLINUZ}" -r "${ROOTFS}" --kargs "panic=-1 sysctl.vm.panic_on_oom=1" \
-       "mkdir -p /ci/workspace && \
-        /bin/mount --bind /mnt/vmtest /ci/workspace && \
-        /bin/mount bpffs /sys/fs/bpf -t bpf && \
-        ip link set lo up                   && \
-        cd '${GITHUB_WORKSPACE}'            && \
+vmtest -k "${VMLINUZ}" --kargs "panic=-1 sysctl.vm.panic_on_oom=1" \
+       "ln -sf /mnt/vmtest/vmlinux /boot/vmlinux-$(uname -r) && \
+        /bin/mount bpffs /sys/fs/bpf -t bpf                  && \
+        ip link set lo up                                    && \
+        cd '${GITHUB_WORKSPACE}'                             && \
         ${VMTEST_SCRIPT} ${T}"
 
 foldable end vmtest

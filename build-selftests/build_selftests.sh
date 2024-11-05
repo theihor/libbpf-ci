@@ -33,12 +33,6 @@ fi
 
 VMLINUX_H=${VMLINUX_H:-}
 
-# if [[ "${KERNEL}" = 'LATEST' ]]; then
-# 	VMLINUX_H=
-# else
-# 	VMLINUX_H=${THISDIR}/vmlinux.h
-# fi
-
 cd ${REPO_ROOT}/${REPO_PATH}
 
 MAKE_OPTS=$(cat <<EOF
