@@ -8,7 +8,7 @@ clean=${1:-}
 
 export GITHUB_REPOSITORY=libbpf/libbpf
 
-export KERNEL=LATEST # 4.9.0
+export KERNEL=LATEST # 5.5.0
 
 export ACTIONS=/ci/actions
 export GITHUB_WORKSPACE=/ci/workspace
@@ -86,11 +86,11 @@ if [[ "$KERNEL" == "LATEST" ]]; then
     cd -
 fi
 
-if [[ "$KERNEL" != "LATEST" ]]; then
+if [[ "$KERNEL" != "LATEST" && ! -f "${GITHUB_WORKSPACE}/vmlinux" ]]; then
+    # cp vmlinux.bak vmlinux
     rm -f $GITHUB_WORKSPACE/vmlinux
-    # export GITHUB_ACTION_PATH=$ACTIONS/download-vmlinux
-    # $GITHUB_ACTION_PATH/run.sh -k $KERNEL
-    cp vmlinux.bak vmlinux
+    export GITHUB_ACTION_PATH=$ACTIONS/download-vmlinux
+    $GITHUB_ACTION_PATH/run.sh -k $KERNEL
     # vmlinux="${GITHUB_WORKSPACE}/vmlinux"
     # zstd -d -i "${ARCH}/vmlinuz-${KERNEL}" -o "$vmlinux"
 fi
@@ -109,15 +109,32 @@ else
 	export VMLINUX_H=$GITHUB_WORKSPACE/.github/actions/build-selftests/vmlinux.h
 fi
 
-# export LLVM_VERSION="${{ inputs.llvm-version }}"
+# libbpf/libbpf build selftests
+export REPO_PATH=.kernel
 if [[ ! -d $GITHUB_WORKSPACE/selftests ]]; then
-    PREPARE_SELFTESTS_SCRIPT=${GITHUB_WORKSPACE}/.github/build-selftests/prepare_selftests-${KERNEL}.sh
-    if [ -f "${PREPARE_SELFTESTS_SCRIPT}" ]; then
-	(cd "${GITHUB_WORKSPACE}/.kernel/tools/testing/selftests/bpf" && ${PREPARE_SELFTESTS_SCRIPT})
-    fi
-    $ACTIONS/build-selftests/build_selftests.sh $ARCH $KERNEL $TOOLCHAIN $(realpath .kernel)
-    cp -R $GITHUB_WORKSPACE/.kernel/tools/testing/selftests $GITHUB_WORKSPACE/selftests
+        # export KERNEL=${{ inputs.kernel }}
+        # export REPO_ROOT="${{ github.workspace }}"
+        # export REPO_PATH="${{ inputs.repo-path }}"
+        # export VMLINUX_BTF="${{ inputs.vmlinux }}"
+        # export LLVM_VERSION="${{ inputs.llvm-version }}"
+    export GITHUB_ACTION_PATH=$GITHUB_WORKSPACE/.github/actions/build-selftests
+    source $GITHUB_ACTION_PATH/../../../ci/vmtest/helpers.sh
+    cd $GITHUB_ACTION_PATH
+    ./build_selftests.sh 
+    cd -
 fi
+
+# libbpf/ci build selftests
+# if [[ ! -d $GITHUB_WORKSPACE/selftests ]]; then
+#     PREPARE_SELFTESTS_SCRIPT=${GITHUB_WORKSPACE}/.github/build-selftests/prepare_selftests-${KERNEL}.sh
+#     if [ -f "${PREPARE_SELFTESTS_SCRIPT}" ]; then
+# 	(cd "${GITHUB_WORKSPACE}/.kernel/tools/testing/selftests/bpf" && ${PREPARE_SELFTESTS_SCRIPT})
+#     fi
+#     $ACTIONS/build-selftests/build_selftests.sh $ARCH $KERNEL $TOOLCHAIN $(realpath .kernel)
+#     cp -R $GITHUB_WORKSPACE/.kernel/tools/testing/selftests $GITHUB_WORKSPACE/selftests
+# fi
+
+
 
 # # libbpf/ci/prepare-rootfs@main
 # export PROJECT_NAME=libbpf
@@ -138,7 +155,7 @@ fi
 # $GITHUB_ACTION_PATH/run.sh
 
 export GITHUB_ACTION_PATH=$ACTIONS/run-vmtest
-export KERNEL_TEST="test_progs_no_alu32" # "test_progs test_progs-no_alu32 test_verifier"
+export KERNEL_TEST="test_progs test_progs_no_alu32" # "test_progs test_progs-no_alu32 test_verifier"
 
 if [[ "$KERNEL" == "LATEST" ]]; then
     image_name=$(make -C $KERNEL_ROOT -s image_name)
@@ -156,7 +173,7 @@ fi
 export PATH=$GITHUB_WORKSPACE/bin:$PATH
 
 # export VMTEST_SCRIPT=$GITHUB_WORKSPACE/ci/vmtest/run_selftests.sh
-export QEMU_ROOTFS=$GITHUB_WORKSPACE/rootfs
+# export QEMU_ROOTFS=$GITHUB_WORKSPACE/rootfs
 # export PROJECT_NAME=/mnt/vmtest
 
 # sudo -E PATH=$PATH
@@ -177,5 +194,10 @@ cat "$GITHUB_WORKSPACE/selftests/bpf/DENYLIST" \
     "$GITHUB_WORKSPACE/ci/vmtest/configs/DENYLIST-${KERNEL}.${ARCH}" \
     2> /dev/null > "${DENYLIST_FILE}" || true
 
+export KBUILD_OUTPUT=$GITHUB_WORKSPACE/.kernel
+export GITHUB_ACTION_PATH=$ACTIONS/run-vmtest
+export VMLINUX=$GITHUB_WORKSPACE/vmlinux
+export GITHUB_STEP_SUMMARY=$(mktemp gh-step-summary.XXXX)
+# export VMLINUZ=$GITHUB_WORKSPACE/$ARCH/vmlinuz-$KERNEL
 $GITHUB_ACTION_PATH/run.sh | cat
 
