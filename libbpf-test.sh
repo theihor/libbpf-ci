@@ -8,7 +8,7 @@ clean=${1:-}
 
 export GITHUB_REPOSITORY=libbpf/libbpf
 
-export KERNEL=LATEST # 5.5.0
+export KERNEL=5.5.0
 
 export ACTIONS=/ci/actions
 export GITHUB_WORKSPACE=/ci/workspace
@@ -18,13 +18,13 @@ export ARCH=x86_64
 # export TARGET_ARCH=$ARCH
 
 export GITHUB_ENV=$GITHUB_WORKSPACE/.github-env
+echo -n > $GITHUB_ENV
 
 
 if [[ -n "$clean" ]]; then
     rm -f $GITHUB_WORKSPACE/vmlinux
     rm -rf $GITHUB_WORKSPACE/selftests
 fi
-
 
 ###################################
 #### libbpf/.github/actions/setup
@@ -65,17 +65,27 @@ echo "CHECKPOINT=$(cat CHECKPOINT-COMMIT)" >> $GITHUB_ENV
 
 ###  skip libbpf/ci/get-linux-source@main
 
-cd $GITHUB_WORKSPACE/.kernel
-$ACTIONS/patch-kernel/patch_kernel.sh $GITHUB_WORKSPACE/ci/diffs
-cd $GITHUB_WORKSPACE
+# cd $GITHUB_WORKSPACE/.kernel
+# $ACTIONS/patch-kernel/patch_kernel.sh $GITHUB_WORKSPACE/ci/diffs
+# cd $GITHUB_WORKSPACE
 
 #     - name: Prepare to build BPF selftests
 source $GITHUB_WORKSPACE/ci/vmtest/helpers.sh
+# cd $GITHUB_WORKSPACE/.kernel
+SELFTESTS_BPF=$GITHUB_WORKSPACE/selftests/bpf
+configs=(
+    "${SELFTESTS_BPF}/config"
+    "${SELFTESTS_BPF}/config.$ARCH"
+    "${SELFTESTS_BPF}/config.vm"
+)
+kbuild_config="${KERNEL_ROOT}/.config"
+
+echo -n > $kbuild_config
+for config in "${configs[@]}"; do
+    cat "$config" >> $kbuild_config || true
+done
+
 cd $GITHUB_WORKSPACE/.kernel
-cat tools/testing/selftests/bpf/config \
-    tools/testing/selftests/bpf/config.$ARCH \
-    > .config
-cat tools/testing/selftests/bpf/config.vm >> .config || :
 make olddefconfig && make prepare
 cd -
 
@@ -95,45 +105,53 @@ if [[ "$KERNEL" != "LATEST" && ! -f "${GITHUB_WORKSPACE}/vmlinux" ]]; then
     # zstd -d -i "${ARCH}/vmlinuz-${KERNEL}" -o "$vmlinux"
 fi
 
-# ./.github/actions/build-selftests
-source $GITHUB_WORKSPACE/ci/vmtest/helpers.sh
-# sudo apt-get install -y qemu-kvm zstd binutils-dev elfutils libcap-dev libelf-dev libdw-dev python3-docutils
-# export KERNEL=LATEST
-# export REPO_ROOT="${{ github.workspace }}"
-export REPO_PATH=.kernel
-export VMLINUX_BTF=$GITHUB_WORKSPACE/vmlinux
-export TOOLCHAIN=llvm
-if [[ "${KERNEL}" = 'LATEST' ]]; then
-	export VMLINUX_H=
-else
-	export VMLINUX_H=$GITHUB_WORKSPACE/.github/actions/build-selftests/vmlinux.h
-fi
-
 # libbpf/libbpf build selftests
-export REPO_PATH=.kernel
-if [[ ! -d $GITHUB_WORKSPACE/selftests ]]; then
-        # export KERNEL=${{ inputs.kernel }}
-        # export REPO_ROOT="${{ github.workspace }}"
-        # export REPO_PATH="${{ inputs.repo-path }}"
-        # export VMLINUX_BTF="${{ inputs.vmlinux }}"
-        # export LLVM_VERSION="${{ inputs.llvm-version }}"
-    export GITHUB_ACTION_PATH=$GITHUB_WORKSPACE/.github/actions/build-selftests
-    source $GITHUB_ACTION_PATH/../../../ci/vmtest/helpers.sh
-    cd $GITHUB_ACTION_PATH
-    ./build_selftests.sh 
-    cd -
+# export REPO_PATH=.kernel
+# if [[ ! -d $GITHUB_WORKSPACE/selftests ]]; then
+#         # export KERNEL=${{ inputs.kernel }}
+#         # export REPO_ROOT="${{ github.workspace }}"
+#         # export REPO_PATH="${{ inputs.repo-path }}"
+#         # export VMLINUX_BTF="${{ inputs.vmlinux }}"
+#         # export LLVM_VERSION="${{ inputs.llvm-version }}"
+#     export GITHUB_ACTION_PATH=$GITHUB_WORKSPACE/.github/actions/build-selftests
+#     source $GITHUB_ACTION_PATH/../../../ci/vmtest/helpers.sh
+#     cd $GITHUB_ACTION_PATH
+#     ./build_selftests.sh 
+#     cd -
+# fi
+
+
+# Prepare to build selftests
+export PREPARE_SCRIPT=$GITHUB_WORKSPACE/ci/vmtest/prepare-selftests-build-${KERNEL}.sh
+export SELFTESTS_BPF=$GITHUB_WORKSPACE/.kernel/tools/testing/selftests/bpf
+
+if [ -f "${PREPARE_SCRIPT}" ]; then
+    bash "${PREPARE_SCRIPT}"
 fi
 
 # libbpf/ci build selftests
-# if [[ ! -d $GITHUB_WORKSPACE/selftests ]]; then
-#     PREPARE_SELFTESTS_SCRIPT=${GITHUB_WORKSPACE}/.github/build-selftests/prepare_selftests-${KERNEL}.sh
-#     if [ -f "${PREPARE_SELFTESTS_SCRIPT}" ]; then
-# 	(cd "${GITHUB_WORKSPACE}/.kernel/tools/testing/selftests/bpf" && ${PREPARE_SELFTESTS_SCRIPT})
-#     fi
-#     $ACTIONS/build-selftests/build_selftests.sh $ARCH $KERNEL $TOOLCHAIN $(realpath .kernel)
-#     cp -R $GITHUB_WORKSPACE/.kernel/tools/testing/selftests $GITHUB_WORKSPACE/selftests
-# fi
 
+export MAX_MAKE_JOBS=32
+export VMLINUX_BTF=$GITHUB_WORKSPACE/vmlinux
+if [[ "$KERNEL" != "LATEST" ]]; then
+    export VMLINUX_H=$GITHUB_WORKSPACE/.github/actions/build-selftests/vmlinux.h
+fi
+
+if [[ ! -f $GITHUB_WORKSPACE/.kernel/tools/testing/selftests/bpf/test_progs ]]; then
+    export GITHUB_ACTION_PATH=$ACTIONS/build-selftests
+    export LLVM_VERSION=${LLVM_VERSION}
+    $GITHUB_ACTION_PATH/build_selftests.sh $ARCH llvm $(realpath .kernel)
+fi
+
+# Prepare to run selftests
+export ALLOWLIST_FILE=/tmp/allowlist
+export DENYLIST_FILE=/tmp/denylist
+# export ARCH=$ARCH
+# export KERNEL=$KERNEL
+export SELFTESTS_BPF=$GITHUB_WORKSPACE/.kernel/tools/testing/selftests/bpf
+export VMTEST_CONFIGS=$GITHUB_WORKSPACE/ci/vmtest/configs
+
+$GITHUB_WORKSPACE/ci/vmtest/prepare-selftests-run.sh
 
 
 # # libbpf/ci/prepare-rootfs@main
@@ -154,16 +172,6 @@ fi
 # export GITHUB_ACTION_PATH=$ACTIONS/run-qemu
 # $GITHUB_ACTION_PATH/run.sh
 
-export GITHUB_ACTION_PATH=$ACTIONS/run-vmtest
-export KERNEL_TEST="test_progs test_progs_no_alu32" # "test_progs test_progs-no_alu32 test_verifier"
-
-if [[ "$KERNEL" == "LATEST" ]]; then
-    image_name=$(make -C $KERNEL_ROOT -s image_name)
-    export VMLINUZ=$(realpath $KERNEL_ROOT/$image_name)
-else
-    export VMLINUZ=$GITHUB_WORKSPACE/$ARCH/vmlinuz-$KERNEL
-fi
-
 
 mkdir -p bin
 if ! [ -f bin/vmtest ]; then
@@ -172,32 +180,19 @@ if ! [ -f bin/vmtest ]; then
 fi
 export PATH=$GITHUB_WORKSPACE/bin:$PATH
 
-# export VMTEST_SCRIPT=$GITHUB_WORKSPACE/ci/vmtest/run_selftests.sh
-# export QEMU_ROOTFS=$GITHUB_WORKSPACE/rootfs
-# export PROJECT_NAME=/mnt/vmtest
 
-# sudo -E PATH=$PATH
+# export ALLOWLIST_FILE=/tmp/allowlist
+# export DENYLIST_FILE=/tmp/denylist
+# export KERNEL=$KERNEL
+export VMLINUX=$GITHUB_WORKSPACE/vmlinux
 
-export ALLOWLIST_FILE=/tmp/.allowlist
-cat "$GITHUB_WORKSPACE/selftests/bpf/ALLOWLIST" \
-    "$GITHUB_WORKSPACE/selftests/bpf/ALLOWLIST.${ARCH}" \
-    "$GITHUB_WORKSPACE/ci/vmtest/configs/ALLOWLIST" \
-    "$GITHUB_WORKSPACE/ci/vmtest/configs/ALLOWLIST-${KERNEL}" \
-    "$GITHUB_WORKSPACE/ci/vmtest/configs/ALLOWLIST-${KERNEL}.${ARCH}" \
-    2> /dev/null > "${ALLOWLIST_FILE}" || true
-
-export DENYLIST_FILE=/tmp/.denylist
-cat "$GITHUB_WORKSPACE/selftests/bpf/DENYLIST" \
-    "$GITHUB_WORKSPACE/selftests/bpf/DENYLIST.${ARCH}" \
-    "$GITHUB_WORKSPACE/ci/vmtest/configs/DENYLIST" \
-    "$GITHUB_WORKSPACE/ci/vmtest/configs/DENYLIST-${KERNEL}" \
-    "$GITHUB_WORKSPACE/ci/vmtest/configs/DENYLIST-${KERNEL}.${ARCH}" \
-    2> /dev/null > "${DENYLIST_FILE}" || true
+export GITHUB_ACTION_PATH=$ACTIONS/run-vmtest
+export GITHUB_STEP_SUMMARY=$(mktemp /tmp/.gh-step-summary.XXXX)
 
 export KBUILD_OUTPUT=$GITHUB_WORKSPACE/.kernel
-export GITHUB_ACTION_PATH=$ACTIONS/run-vmtest
-export VMLINUX=$GITHUB_WORKSPACE/vmlinux
-export GITHUB_STEP_SUMMARY=$(mktemp gh-step-summary.XXXX)
-# export VMLINUZ=$GITHUB_WORKSPACE/$ARCH/vmlinuz-$KERNEL
+export VMLINUZ=$ARCH/vmlinuz-$KERNEL
+
+export KERNEL_TEST=${KERNEL_TEST:-}
+
 $GITHUB_ACTION_PATH/run.sh | cat
 
