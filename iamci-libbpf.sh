@@ -8,15 +8,23 @@ actions=${3:-"$(pwd)"}
 
 LLVM_VERSION=${LLVM_VERSION:-18}
 
-tag=$(echo "$(pwd)" | sed "s:^$HOME/::" | tr '/' '-')
+# tag=$(echo "$(pwd)" | sed "s:^$HOME/::" | tr '/' '-')
 
-docker build -t $tag                 \
-       --build-arg C_GID=$(id -g)    \
-       --build-arg C_GROUP=$(id -gn) \
-       --build-arg C_UID=$(id -u)    \
-       --build-arg C_USER=$(id -un)  \
-       --build-arg LLVM_VERSION=$LLVM_VERSION   \
+tag=gha-runner
+
+docker build -t $tag \
+       -f gha-runner.Dockerfile                 \
+       --build-arg=RUNNER_VERSION=2.320.0 \
        .
+
+
+       # --build-arg C_GID=$(id -g)    \
+       # --build-arg C_GROUP=$(id -gn) \
+       # --build-arg C_UID=$(id -u)    \
+       # --build-arg C_USER=$(id -un)  \
+       # --build-arg LLVM_VERSION=$LLVM_VERSION   \
+
+
 #            --user "$(id -u):$(id -gn)" 
 function docker_run {
     docker run -d --privileged \
