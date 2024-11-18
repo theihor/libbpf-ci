@@ -58,6 +58,22 @@ RUN apt-get update && apt-get install -y \
 RUN apt-get update && apt-get install -y \
     qemu-guest-agent qemu-kvm qemu-system-arm qemu-system-s390x qemu-system-x86 qemu-utils
 
+ENV UBUNTU_VERSION=noble
+WORKDIR /ci/lib
+COPY helpers.sh /ci/actions/helpers.sh
+COPY setup-build-env /ci/actions/setup-build-env
+ENV LLVM_VERSION=${LLVM_VERSION}
+# RUN /ci/actions/setup-build-env/install_clang.sh
+RUN wget https://apt.llvm.org/llvm.sh \
+ && chmod +x llvm.sh \
+ &&./llvm.sh ${LLVM_VERSION} all \
+ && rm llvm.sh
+
+ENV PAHOLE_BRANCH=master
+RUN /ci/actions/setup-build-env/build_pahole.sh
+
+RUN rm -rf /ci/actions
+
 # && rm -rf /var/lib/apt/lists/*
 
 RUN adduser --disabled-password --gecos "" --uid 1001 runner \
@@ -76,4 +92,6 @@ RUN install -o root -g root -m 755 docker/* /usr/bin/ && rm -rf docker
 
 USER runner
 
+WORKDIR /ci/workspace
+ENV LD_LIBRARY_PATH=/usr/local/lib
 ENTRYPOINT ["sh", "-c", "sudo chmod 666 /dev/kvm; trap exit TERM; while :; do sleep 1; done"]
