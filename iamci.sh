@@ -21,7 +21,7 @@ function docker_run {
     docker run -d --privileged \
            --device=/dev/kvm \
            --cap-add ALL \
-           --user "$(id -u):$(id -gn)" \
+           --user "$(id -u):$(id -g)" \
            -v $(realpath $actions):/ci/actions \
            -v $(realpath $linux_repo):/ci/workspace \
            $tag
