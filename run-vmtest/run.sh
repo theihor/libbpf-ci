@@ -7,8 +7,14 @@ source "${GITHUB_ACTION_PATH}/../helpers.sh"
 
 export VMLINUZ=${VMLINUZ:-}
 if [[ ! -f "${VMLINUZ}" ]]; then
+    echo "Could not find VMLINUZ=\"$VMLINUX\", searching with make -s image_name"
     image_name=$(make -C ${KERNEL_ROOT} -s image_name)
     export VMLINUZ=$(realpath ${KBUILD_OUTPUT})/${image_name}
+fi
+
+if [[ ! -f "${VMLINUZ}" ]]; then
+    echo "Could not find VMLINUZ (compressed kernel binary), exiting"
+    exit 2
 fi
 
 # Create a symlink to vmlinux from a "standard" location
@@ -19,7 +25,7 @@ if [[ -f "${VMLINUX}" ]]; then
     sudo mkdir -p /usr/lib/debug/boot
     sudo ln -sf "${VMLINUX}" "/usr/lib/debug/boot/vmlinux-${VMLINUX_VERSION}"
 else
-    echo "$VMLINUX does not exist"
+    echo "Could not find VMLINUX=\"$VMLINUX\", exiting"
     exit 2
 fi
 
@@ -41,7 +47,7 @@ else
 fi
 
 # clear exitstatus file
-echo -n "" > exitstatus
+echo -n > exitstatus
 
 foldable start bpftool_checks "Running bpftool checks..."
 
