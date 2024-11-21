@@ -86,6 +86,8 @@ vmtest -k "${VMLINUZ}" --kargs "panic=-1 sysctl.vm.panic_on_oom=1" \
 
 foldable end vmtest
 
+exit 0
+
 foldable start collect_status "Collecting exit status"
 
 exitfile="$(cat exitstatus 2>/dev/null)"

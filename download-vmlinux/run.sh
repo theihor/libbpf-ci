@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -uo pipefail
+set -x -uo pipefail
 trap 'exit 2' ERR
 
 source $(cd $(dirname $0) && pwd)/../helpers.sh
