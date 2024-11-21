@@ -47,10 +47,28 @@ export GITHUB_ACTION_PATH=$ACTIONS/patch-kernel
 $GITHUB_ACTION_PATH/patch_kernel.sh $GITHUB_WORKSPACE/ci/diffs
 
 
+#  - name: Build kernel image
+export KBUILD_OUTPUT=$(realpath $GITHUB_WORKSPACE/kbuild-output)
+# export LLVM_VERSION=${{ inputs.llvm-version }}
+export GITHUB_ACTION_PATH=$ACTIONS/build-linux
+$GITHUB_ACTION_PATH/build.sh $ARCH $TOOLCHAIN $KBUILD_OUTPUT
+
+
+# - name: Build selftests/bpf
+export GITHUB_ACTION_PATH=$ACTIONS/build-selftests
+$GITHUB_ACTION_PATH/build_selftests.sh $ARCH $TOOLCHAIN $KERNEL_ROOT
+
+# - name: Build selftests/sched_ext
+export MAX_MAKE_JOBS=32
+export REPO_ROOT=$GITHUB_WORKSPACE
+export GITHUB_ACTION_PATH=$ACTIONS/build-scx-selftests
+$GITHUB_ACTION_PATH/build.sh $ARCH $TOOLCHAIN $LLVM_VERSION
 
 exit 0
 
-#     - name: Prepare to build BPF selftests
+
+
+# - name: Prepare to build BPF selftests
 source $GITHUB_WORKSPACE/ci/vmtest/helpers.sh
 # cd $GITHUB_WORKSPACE/.kernel
 SELFTESTS_BPF=$GITHUB_WORKSPACE/.kernel/tools/testing/selftests/bpf
