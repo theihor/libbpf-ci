@@ -18,7 +18,8 @@ source "$(cd "$(dirname "$0")" && pwd)/helpers.sh"
 
 ARCH=$(uname -m)
 
-SELFTESTS_BPF=${SELFTESTS_BPF:-/mnt/vmtest/selftests/bpf}
+export SELFTESTS_BPF=${SELFTESTS_BPF:-/mnt/vmtest/selftests/bpf}
+
 STATUS_FILE=${STATUS_FILE:-/mnt/vmtest/exitstatus}
 OUTPUT_DIR=${OUTPUT_DIR:-/mnt/vmtest}
 
@@ -82,6 +83,7 @@ test_verifier() {
 }
 
 export VERISTAT_CONFIGS=${VERISTAT_CONFIGS:-/mnt/vmtest/ci/vmtest/configs}
+export WORKING_DIR=$(pwd) # veristat config expects this variable
 
 run_veristat_helper() {
   local mode="${1}"
@@ -100,7 +102,7 @@ run_veristat_helper() {
     source "${VERISTAT_CONFIGS}/run_veristat.${mode}.cfg"
     pushd "${VERISTAT_OBJECTS_DIR}"
 
-    "${BPF_SELFTESTS_DIR}/veristat" -o csv -q -e file,prog,verdict,states ${VERISTAT_OBJECTS_GLOB} > \
+    "${SELFTESTS_BPF}/veristat" -o csv -q -e file,prog,verdict,states ${VERISTAT_OBJECTS_GLOB} > \
       "${OUTPUT_DIR}/${VERISTAT_OUTPUT}"
 
     echo "run_veristat_${mode}:$?" >> ${STATUS_FILE}
@@ -139,7 +141,7 @@ echo "ALLOWLIST: ${ALLOWLIST}"
 
 cd $SELFTESTS_BPF
 
-TEST_NAMES="$@"
+declare -a TEST_NAMES=($@)
 # if we don't have any test name provided to the script, we run all tests.
 if [ ${#TEST_NAMES[@]} -eq 0 ]; then
 	test_progs

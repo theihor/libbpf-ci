@@ -5,10 +5,13 @@ trap 'exit 2' ERR
 
 source "${GITHUB_ACTION_PATH}/../helpers.sh"
 
+export ARCH=${ARCH:-$(uname -m)}
+
 export VMLINUZ=${VMLINUZ:-}
 if [[ ! -f "${VMLINUZ}" ]]; then
-    echo "Could not find VMLINUZ=\"$VMLINUX\", searching with make -s image_name"
-    image_name=$(make -C ${KERNEL_ROOT} -s image_name)
+    echo "Could not find VMLINUZ=\"$VMLINUZ\", searching with make -s image_name"
+    karch=$(platform_to_kernel_arch $ARCH)
+    image_name=$(ARCH=${karch} make -C ${KERNEL_ROOT} -s image_name)
     export VMLINUZ=$(realpath ${KBUILD_OUTPUT})/${image_name}
 fi
 
@@ -19,7 +22,7 @@ fi
 
 # Create a symlink to vmlinux from a "standard" location
 # See btf__load_vmlinux_btf() in libbpf
-VMLINUX=${VMLINUX:-"$KBUILD_OUTPUT/vmlinux"}
+export VMLINUX=${VMLINUX:-"$KBUILD_OUTPUT/vmlinux"}
 if [[ -f "${VMLINUX}" ]]; then
     VMLINUX_VERSION="$(strings ${VMLINUX} | grep -m 1 'Linux version' | awk '{print $3}')" || true
     sudo mkdir -p /usr/lib/debug/boot
