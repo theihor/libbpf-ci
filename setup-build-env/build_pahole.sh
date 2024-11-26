@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eu
+set -eux
 
 PAHOLE_BRANCH=${PAHOLE_BRANCH:-master}
 PAHOLE_ORIGIN=${PAHOLE_ORIGIN:-https://git.kernel.org/pub/scm/devel/pahole/pahole.git}
@@ -9,7 +9,7 @@ source $(cd $(dirname $0) && pwd)/../helpers.sh
 
 foldable start build_pahole "Building pahole"
 
-sudo apt-get update && sudo apt-get install elfutils libelf-dev libdw-dev
+# sudo apt-get update && sudo apt-get install elfutils libelf-dev libdw-dev
 
 CWD=$(pwd)
 
@@ -22,7 +22,7 @@ git checkout "${PAHOLE_BRANCH}"
 
 mkdir -p build
 cd build
-cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -D__LIB=lib ..
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -D__LIB=lib ..
 make -j$((4*$(nproc)))
 sudo make install
 
