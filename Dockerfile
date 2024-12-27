@@ -15,15 +15,15 @@ ARG LLVM_VERSION
 
 # Give $C_USER passwordless sudo permissions
 RUN mkdir -p /etc/sudoers.d && \
-    echo $C_USER "ALL=(ALL) NOPASSWD:ALL" \
-    > /etc/sudoers.d/$C_USER
+    echo ubuntu "ALL=(ALL) NOPASSWD:ALL" \
+    > /etc/sudoers.d/ubuntu
 
 # LABEL maintainer="sunyucong@gmail.com"
 
 RUN apt-get update && apt-get install -y \
     bc bison build-essential cmake cpu-checker elfutils ethtool flex g++ gawk iproute2 iptables \
     iputils-ping keyutils libguestfs-tools python3-docutils rsync xz-utils zstd \
-    vim tree
+    vim tree texinfo
 RUN apt-get update && apt-get install -y \
     binutils-dev libcap-dev libdw-dev libelf-dev libelf-dev libssl-dev libzstd-dev ncurses-dev
 RUN apt-get update && apt-get install -y \
@@ -46,8 +46,7 @@ WORKDIR /ci/lib
 ENV LLVM_VERSION=${LLVM_VERSION}
 RUN /ci/actions/setup-build-env/install_clang.sh
 
-#
-ENV PAHOLE_BRANCH=c2f89dab3f2b0ebb53bab3ed8be32f41cb743c37
+ENV PAHOLE_BRANCH=master
 # ENV PAHOLE_BRANCH=tmp.master
 RUN /ci/actions/setup-build-env/build_pahole.sh
 
@@ -60,6 +59,12 @@ WORKDIR $GITHUB_WORKSPACE
 #  && git checkout ci-build-id-debug
 
 # ENTRYPOINT ["sh", "-c", "trap exit TERM; while :; do sleep 1; done"]
+
+# install Nix
+# RUN apt-get -y install nix
+
+# USER ubuntu
+# RUN curl -L https://nixos.org/nix/install | sh -s -- --no-daemon
 
 ENV LD_LIBRARY_PATH=/usr/local/lib
 ENTRYPOINT ["sh", "-c", "sudo chmod 666 /dev/kvm; trap exit TERM; while :; do sleep 1; done"]

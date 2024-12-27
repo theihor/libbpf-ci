@@ -1,18 +1,19 @@
 { pkgs ? import <nixpkgs> {} }:
 
 pkgs.stdenv.mkDerivation {
-  version = "c2f89da";
+  version = "v1.28";
   pname = "pahole";
+  enableParallelBuilding = true;
   src = pkgs.fetchgit {
     url = "https://git.kernel.org/pub/scm/devel/pahole/pahole.git";
-    rev = "c2f89dab3f2b0ebb53bab3ed8be32f41cb743c37";
-    sha256 = "b5LcgfFMl7JXIiT2JWZEZOKZO5Oex620AhH7LNu8X+g=";
+    rev = "v1.28";
+    sha256 = "dk1Lde36AZM+notYA6+pEWXl1PxO7Wii3mmFx5W/jU4=";
   };
 
   nativeBuildInputs = with pkgs; [ cmake pkg-config elfutils zlib libdwarf libelf ];
 
   cmakeFlags = [
-    "-D__LIB=lib/pahole"
+    "-DCMAKE_BUILD_TYPE=Release"
   ];
 
   installPhase = ''
