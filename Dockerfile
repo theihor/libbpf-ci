@@ -22,7 +22,7 @@ RUN mkdir -p /etc/sudoers.d && \
 
 RUN apt-get update && apt-get install -y \
     bc bison build-essential cmake cpu-checker elfutils ethtool flex g++ gawk iproute2 iptables \
-    iputils-ping keyutils libguestfs-tools linux-image-generic python3-docutils rsync xz-utils zstd \
+    iputils-ping keyutils libguestfs-tools python3-docutils rsync xz-utils zstd \
     vim tree
 RUN apt-get update && apt-get install -y \
     binutils-dev libcap-dev libdw-dev libelf-dev libelf-dev libssl-dev libzstd-dev ncurses-dev
