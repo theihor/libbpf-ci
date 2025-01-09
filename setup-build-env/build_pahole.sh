@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eu
+set -eux
 
 PAHOLE_BRANCH=${PAHOLE_BRANCH:-master}
 PAHOLE_ORIGIN=${PAHOLE_ORIGIN:-https://git.kernel.org/pub/scm/devel/pahole/pahole.git}
@@ -21,8 +21,9 @@ git fetch --depth=1 origin "${PAHOLE_BRANCH}"
 git checkout "${PAHOLE_BRANCH}"
 
 mkdir -p build
+git am ${GITHUB_ACTION_PATH}/pahole.patch
 cd build
-cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -D__LIB=lib ..
+cmake -DCMAKE_BUILD_TYPE=Debug -D__LIB=lib ..
 make -j$((4*$(nproc)))
 sudo make install
 

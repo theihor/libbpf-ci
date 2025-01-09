@@ -1,0 +1,26 @@
+From 5477bfe62a366dda620abf9d6f6dc4dfc56c76ee Mon Sep 17 00:00:00 2001
+From: Ihor Solodrai <ihor.solodrai@pm.me>
+Date: Thu, 9 Jan 2025 15:53:10 -0800
+Subject: [PATCH] tmp
+
+---
+ CMakeLists.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index fb7eb64..9afddc7 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -35,7 +35,8 @@ if (NOT CMAKE_BUILD_TYPE)
+ 	     FORCE)
+ endif (NOT CMAKE_BUILD_TYPE)
+ 
+-set(CMAKE_C_FLAGS_DEBUG "-Wall -Werror -ggdb -O0")
++# set(CMAKE_C_FLAGS_DEBUG "-Wall -Werror -ggdb -O0")
++set(CMAKE_C_FLAGS_DEBUG "-Wall -Werror -ggdb -O0 -fsanitize=undefined,address -fsanitize-recover=address -fno-omit-frame-pointer")
+ set(CMAKE_C_FLAGS_RELEASE "-Wall -O2")
+ SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
+ 
+-- 
+2.47.1
+
