@@ -4,14 +4,8 @@ set -euo pipefail
 BINUTILS_TARBALL=`wget https://snapshots.sourceware.org/binutils/trunk/latest/src/sha512.sum -O - -o /dev/null | grep -E 'binutils-[0-9a-f.-]+.tar.xz' | sed -e 's/.*\(binutils-[^<]*\).*/\1/'`
 GCC_TARBALL=`wget https://gcc.gnu.org/pub/gcc/snapshots/LATEST-15 -O - -o /dev/null | grep -E 'gcc-15-[0-9]+.tar.xz' | sed -e 's/.*\(gcc-15-[^<]*\).*/\1/'`
 
-# BINUTILS_TARBALL=binutils-2.43.50-d5827a0e838.tar.xz
-# ver=15-20241117
-# GCC_TARBALL=gcc-${ver}.tar.xz  # gcc-15-20241222.tar.xz
-# GCC_URL="https://gcc.gnu.org/pub/gcc/snapshots/${ver}/$GCC_TARBALL"
-
 BINUTILS_URL="https://snapshots.sourceware.org/binutils/trunk/latest/src/$BINUTILS_TARBALL"
 GCC_URL="https://gcc.gnu.org/pub/gcc/snapshots/LATEST-15/$GCC_TARBALL"
-
 
 BINUTILS_BASENAME=$(basename $BINUTILS_TARBALL .tar.xz)
 GCC_BASENAME=$(basename $GCC_TARBALL .tar.xz)

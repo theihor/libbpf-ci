@@ -50,6 +50,6 @@ EOF
 )
 make ${MAKE_OPTS} -C ${KERNEL_ROOT} headers
 make ${MAKE_OPTS} ${SELF_OPTS} clean
-make ${MAKE_OPTS} ${SELF_OPTS} -j $(kernel_build_make_jobs) # test_progs-bpf_gcc
+make ${MAKE_OPTS} ${SELF_OPTS} -j $(kernel_build_make_jobs)
 
 foldable end build_selftests
