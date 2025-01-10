@@ -2,7 +2,7 @@
 
 set -eux
 
-PAHOLE_BRANCH=${PAHOLE_BRANCH:-master}
+PAHOLE_BRANCH=bc3e337e5b3799352d4133acc0081dff7952c621 # ${PAHOLE_BRANCH:-master}
 PAHOLE_ORIGIN=${PAHOLE_ORIGIN:-https://git.kernel.org/pub/scm/devel/pahole/pahole.git}
 
 source $(cd $(dirname $0) && pwd)/../helpers.sh
@@ -21,7 +21,7 @@ git fetch --depth=1 origin "${PAHOLE_BRANCH}"
 git checkout "${PAHOLE_BRANCH}"
 
 mkdir -p build
-git am ${GITHUB_ACTION_PATH}/pahole.patch
+patch -p1 ${GITHUB_ACTION_PATH}/pahole.patch
 cd build
 cmake -DCMAKE_BUILD_TYPE=Debug -D__LIB=lib ..
 make -j$((4*$(nproc)))
