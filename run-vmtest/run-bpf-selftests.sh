@@ -23,24 +23,13 @@ export SELFTESTS_BPF=${SELFTESTS_BPF:-/mnt/vmtest/selftests/bpf}
 STATUS_FILE=${STATUS_FILE:-/mnt/vmtest/exitstatus}
 OUTPUT_DIR=${OUTPUT_DIR:-/mnt/vmtest}
 
-if [ -f "${ALLOWLIST_FILE:-}" ]; then
-   ALLOWLIST_ARG="-a@${ALLOWLIST_FILE}"
-else
-   ALLOWLIST_ARG=
-fi
-
-if [ -f "${DENYLIST_FILE:-}" ]; then
-   DENYLIST_ARG="-d@${DENYLIST_FILE}"
-else
-   DENYLIST_ARG=
-fi
-
 test_progs_helper() {
   local selftest="test_progs${1}"
   local args="$2"
 
   args+=" ${TEST_PROGS_WATCHDOG_TIMEOUT:+-w$TEST_PROGS_WATCHDOG_TIMEOUT}"
-  args+=" ${ALLOWLIST_ARG} ${DENYLIST_ARG}"
+  args+=" ${ALLOWLIST_FILE:+-a@$ALLOWLIST_FILE}"
+  args+=" ${DENYLIST_FILE:+-d@$DENYLIST_FILE}"
 
   json_file=${selftest/-/_}
   if [ "$2" == "-j" ]

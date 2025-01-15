@@ -40,18 +40,20 @@ then
     RUN_BPFTOOL_CHECKS=true
 fi
 
-if [[ -f "${VMTEST_CONFIGS:-}/run-vmtest.env" ]]; then
+VMTEST_CONFIGS=${VMTEST_CONFIGS:-}
+if [[ -n "$VMTEST_CONFIGS" && -f "${VMTEST_CONFIGS}/run-vmtest.env" ]];
+then
     source "${VMTEST_CONFIGS:-}/run-vmtest.env"
 fi
 
 VMTEST_SCRIPT=${VMTEST_SCRIPT:-}
-if [[ -z "$VMTEST_SCRIPT" \
-          && "$KERNEL_TEST" != "sched_ext" ]];
+if [[ -z "$VMTEST_SCRIPT" && "$KERNEL_TEST" == "sched_ext" ]];
 then
-	${GITHUB_ACTION_PATH}/prepare-bpf-selftests.sh
-	VMTEST_SCRIPT="${GITHUB_ACTION_PATH}/run-bpf-selftests.sh"
-else
-	VMTEST_SCRIPT="${GITHUB_ACTION_PATH}/run-scx-selftests.sh"
+    VMTEST_SCRIPT="${GITHUB_ACTION_PATH}/run-scx-selftests.sh"
+elif [[ -z "$VMTEST_SCRIPT" ]];
+then
+    ${GITHUB_ACTION_PATH}/prepare-bpf-selftests.sh
+    VMTEST_SCRIPT="${GITHUB_ACTION_PATH}/run-bpf-selftests.sh"
 fi
 
 # clear exitstatus file

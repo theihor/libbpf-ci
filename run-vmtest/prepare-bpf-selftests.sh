@@ -2,25 +2,35 @@
 
 set -euo pipefail
 
+if [[ -z "${SELFTESTS_BPF_ALLOWLIST_FILES:-}" && -z "${SELFTESTS_BPF_DENYLIST_FILES:-}" ]]; then
+   exit 0
+fi
+
 function merge_test_lists_into() {
     local out="$1"
     shift
     local files=("$@")
-    echo -n > "$out"
 
-    # first, append all the input lists into one
+    local list=$(mktemp)
+    echo -n > "$list"
+    # append all the source lists into one
     for file in "${files[@]}"; do
         if [[ -f "$file" ]]; then
-            echo "cat $file >> $out"
-            cat "$file" >> "$out"
+            echo "Include $file"
+            cat "$file" >> "$list"
         fi
     done
 
-    # then merge the list of test names
-    cat "$out" | python3 merge_test_lists.py > "$out"
+    # then normalize the list of test names
+    $GITHUB_ACTION_PATH/normalize_bpf_test_names.py "$list" > "$out"
+    rm "$list"
 }
 
-merge_test_lists_into "${ALLOWLIST_FILE}" "${SELFTESTS_BPF_ALLOWLIST_FILES[@]}"
-merge_test_lists_into "${DENYLIST_FILE}" "${SELFTESTS_BPF_ALLOWLIST_FILES[@]}"
+# Read arrays from pipe-separated strings
+IFS="|" read -a ALLOWLIST_FILES <<< "$SELFTESTS_BPF_ALLOWLIST_FILES"
+IFS="|" read -a DENYLIST_FILES <<< "$SELFTESTS_BPF_DENYLIST_FILES"
+
+merge_test_lists_into "${ALLOWLIST_FILE}" "${ALLOWLIST_FILES[@]}"
+merge_test_lists_into "${DENYLIST_FILE}" "${DENYLIST_FILES[@]}"
 
 exit 0
