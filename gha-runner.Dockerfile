@@ -62,12 +62,12 @@ ENV UBUNTU_VERSION=noble
 WORKDIR /ci/lib
 COPY helpers.sh /ci/actions/helpers.sh
 COPY setup-build-env /ci/actions/setup-build-env
-ENV LLVM_VERSION=${LLVM_VERSION}
-# RUN /ci/actions/setup-build-env/install_clang.sh
-RUN wget https://apt.llvm.org/llvm.sh \
- && chmod +x llvm.sh \
- &&./llvm.sh ${LLVM_VERSION} all \
- && rm llvm.sh
+ENV LLVM_VERSION=18
+RUN /ci/actions/setup-build-env/install_clang.sh
+# RUN wget https://apt.llvm.org/llvm.sh \
+#  && chmod +x llvm.sh \
+#  &&./llvm.sh ${LLVM_VERSION} all \
+#  && rm llvm.sh
 
 ENV PAHOLE_BRANCH=master
 RUN /ci/actions/setup-build-env/build_pahole.sh

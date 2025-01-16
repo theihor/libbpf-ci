@@ -70,7 +70,7 @@ echo "CHECKPOINT=$(cat CHECKPOINT-COMMIT)" >> $GITHUB_ENV
 # cd $GITHUB_WORKSPACE
 
 #     - name: Prepare to build BPF selftests
-source $GITHUB_WORKSPACE/ci/vmtest/helpers.sh
+# source $GITHUB_WORKSPACE/ci/vmtest/helpers.sh
 # cd $GITHUB_WORKSPACE/.kernel
 SELFTESTS_BPF=$GITHUB_WORKSPACE/.kernel/tools/testing/selftests/bpf
 configs=(
@@ -143,36 +143,6 @@ if [[ ! -f $GITHUB_WORKSPACE/.kernel/tools/testing/selftests/bpf/test_progs ]]; 
     $GITHUB_ACTION_PATH/build_selftests.sh $ARCH gcc $(realpath .kernel)
 fi
 
-# Prepare to run selftests
-export ALLOWLIST_FILE=/tmp/allowlist
-export DENYLIST_FILE=/tmp/denylist
-# export ARCH=$ARCH
-# export KERNEL=$KERNEL
-export SELFTESTS_BPF=$GITHUB_WORKSPACE/.kernel/tools/testing/selftests/bpf
-export VMTEST_CONFIGS=$GITHUB_WORKSPACE/ci/vmtest/configs
-
-$GITHUB_WORKSPACE/ci/vmtest/prepare-selftests-run.sh
-
-
-# # libbpf/ci/prepare-rootfs@main
-# export PROJECT_NAME=libbpf
-# export KBUILD_OUTPUT=$(realpath .kernel)
-# export KERNEL_ROOT=$(realpath .kernel)
-# export IMG=/tmp/root.img
-# export GITHUB_ACTION_PATH=$ACTIONS/prepare-rootfs
-# $GITHUB_ACTION_PATH/run_vmtest.sh $KBUILD_OUTPUT $IMG
-
-# # libbpf/ci/run-qemu@main
-# # KERNEL: ${{ inputs.kernel }}
-# # REPO_ROOT: ${{ github.workspace }}
-# export VMLINUZ=vmlinuz
-# export MAX_CPU=32
-# export KERNEL_TEST=
-# export OUTPUT_DIR=
-# export GITHUB_ACTION_PATH=$ACTIONS/run-qemu
-# $GITHUB_ACTION_PATH/run.sh
-
-
 mkdir -p bin
 if ! [ -f bin/vmtest ]; then
   curl -L https://github.com/danobi/vmtest/releases/download/v0.15.0/vmtest-$(uname -m) -o bin/vmtest
@@ -180,11 +150,14 @@ if ! [ -f bin/vmtest ]; then
 fi
 export PATH=$GITHUB_WORKSPACE/bin:$PATH
 
-
-# export ALLOWLIST_FILE=/tmp/allowlist
-# export DENYLIST_FILE=/tmp/denylist
-# export KERNEL=$KERNEL
+export ARCH=$ARCH
+export ALLOWLIST_FILE=/tmp/allowlist
+export DENYLIST_FILE=/tmp/denylist
+export KERNEL=$KERNEL
 export VMLINUX=$GITHUB_WORKSPACE/vmlinux
+export LLVM_VERSION=$LLVM_VERSION
+export SELFTESTS_BPF=$GITHUB_WORKSPACE/.kernel/tools/testing/selftests/bpf
+export VMTEST_CONFIGS=$GITHUB_WORKSPACE/ci/vmtest/configs
 
 export GITHUB_ACTION_PATH=$ACTIONS/run-vmtest
 export GITHUB_STEP_SUMMARY=$(mktemp /tmp/.gh-step-summary.XXXX)

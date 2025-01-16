@@ -14,7 +14,7 @@ tag=gha-runner
 
 docker build -t $tag \
        -f gha-runner.Dockerfile                 \
-       --build-arg=RUNNER_VERSION=2.320.0 \
+       --build-arg=RUNNER_VERSION=2.321.0 \
        .
 
 
