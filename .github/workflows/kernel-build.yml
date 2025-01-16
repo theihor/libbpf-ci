@@ -46,6 +46,10 @@ jobs:
     timeout-minutes: 100
     env:
         ARTIFACTS_ARCHIVE: "vmlinux-${{ inputs.arch }}-${{ inputs.toolchain_full }}.tar.zst"
+
+        BUILD_BPF_GCC: ${{ inputs.arch == 'x86_64' && 'true' || '' }}
+        BPF_GCC_INSTALL_DIR: ${{ github.workspace }}/bpf-gcc
+
         BPF_NEXT_BASE_BRANCH: 'master'
         BPF_NEXT_FETCH_DEPTH: 64 # A bit of history is needed to facilitate incremental builds
         BUILD_SCHED_EXT_SELFTESTS: ${{ inputs.arch == 'x86_64' || inputs.arch == 'aarch64' && 'true' || '' }}
@@ -120,6 +124,7 @@ jobs:
         env:
           MAX_MAKE_JOBS: 32
           RELEASE: ${{ inputs.release && '1' || '' }}
+          BPF_GCC: ${{ env.BUILD_BPF_GCC && env.BPF_GCC_INSTALL_DIR || '' }}
         with:
           arch: ${{ inputs.arch }}
           kernel-root: ${{ env.KERNEL_ROOT }}
