@@ -29,10 +29,8 @@ RUN apt-get update && apt-get install -y \
 RUN apt-get update && apt-get install -y \
     qemu-guest-agent qemu-kvm qemu-system-arm qemu-system-s390x qemu-system-x86 qemu-utils
 
-RUN echo "deb https://apt.llvm.org/${UBUNTU_VERSION}/ llvm-toolchain-${UBUNTU_VERSION} main" \
-    > /etc/apt/sources.list.d/llvm.list
-RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
-RUN apt-get update && apt-get install -y clang lld llvm
+# Install LLVM with automatic script (https://apt.llvm.org)
+RUN bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
 
 # RUN git clone --depth=1 https://github.com/kernel-patches/bpf.git /ci/linux
 
