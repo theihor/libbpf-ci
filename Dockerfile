@@ -1,36 +1,4 @@
-# hadolint ignore=DL3007
-ARG UBUNTU_VERSION=noble
-FROM myoung34/github-runner:ubuntu-${UBUNTU_VERSION}
-# Redefining UBUNTU_VERSION without a value inherits the global default
-ARG UBUNTU_VERSION
-
-ARG C_GID
-ARG C_GROUP
-ARG C_UID
-ARG C_USER
-ARG LLVM_VERSION
-
-# RUN groupadd --gid $C_GID $C_GROUP
-# RUN adduser --gid $C_GID --uid $C_UID $C_USER
-
-# Give $C_USER passwordless sudo permissions
-RUN mkdir -p /etc/sudoers.d && \
-    echo ubuntu "ALL=(ALL) NOPASSWD:ALL" \
-    > /etc/sudoers.d/ubuntu
-
-# LABEL maintainer="sunyucong@gmail.com"
-
-RUN apt-get update && apt-get install -y \
-    bc bison build-essential cmake cpu-checker elfutils ethtool flex g++ gawk iproute2 iptables \
-    iputils-ping keyutils libguestfs-tools python3-docutils rsync xz-utils zstd \
-    vim tree texinfo
-RUN apt-get update && apt-get install -y \
-    binutils-dev libcap-dev libdw-dev libelf-dev libelf-dev libssl-dev libzstd-dev ncurses-dev
-RUN apt-get update && apt-get install -y \
-    qemu-guest-agent qemu-kvm qemu-system-arm qemu-system-s390x qemu-system-x86 qemu-utils
-
-# Install LLVM with automatic script (https://apt.llvm.org)
-RUN bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+FROM ghcr.io/kernel-patches/runner:main-noble-x86_64
 
 # RUN git clone --depth=1 https://github.com/kernel-patches/bpf.git /ci/linux
 
@@ -41,6 +9,7 @@ COPY setup-build-env /ci/actions/setup-build-env
 
 WORKDIR /ci/lib
 
+ARG LLVM_VERSION
 ENV LLVM_VERSION=${LLVM_VERSION}
 RUN /ci/actions/setup-build-env/install_clang.sh
 
