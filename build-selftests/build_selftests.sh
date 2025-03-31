@@ -2,14 +2,15 @@
 
 set -euo pipefail
 
-THISDIR="$(cd $(dirname $0) && pwd)"
-
-source "${THISDIR}"/../helpers.sh
+source "${GITHUB_ACTION_PATH}/../helpers.sh"
 
 TARGET_ARCH="$1"
-KERNEL="$2"
-TOOLCHAIN="$3"
-export KBUILD_OUTPUT="$4"
+TOOLCHAIN="$2"
+KERNEL_ROOT="$(realpath $3)"
+
+export KBUILD_OUTPUT="${KBUILD_OUTPUT:-${KERNEL_ROOT}}"
+export VMLINUX_BTF="${VMLINUX_BTF:-${KBUILD_OUTPUT}/vmlinux}"
+export VMLINUX_H="${VMLINUX_H:-}"
 
 ARCH="$(platform_to_kernel_arch ${TARGET_ARCH})"
 CROSS_COMPILE=""
@@ -24,37 +25,31 @@ if [[ $TOOLCHAIN = "llvm" ]]; then
 	TOOLCHAIN="llvm-$LLVM_VERSION"
 fi
 
-foldable start build_selftests "Building selftests with $TOOLCHAIN"
-
-PREPARE_SELFTESTS_SCRIPT=${THISDIR}/prepare_selftests-${KERNEL}.sh
-if [ -f "${PREPARE_SELFTESTS_SCRIPT}" ]; then
-	(cd "${REPO_ROOT}/${REPO_PATH}/tools/testing/selftests/bpf" && ${PREPARE_SELFTESTS_SCRIPT})
-fi
-
-if [[ "${KERNEL}" = 'LATEST' ]]; then
-	VMLINUX_H=
+if [ -n "${BPF_GCC:-}" ]; then
+    BPF_GCC="${BPF_GCC}/bin/bpf-unknown-none-gcc"
 else
-	VMLINUX_H=${THISDIR}/vmlinux.h
+    BPF_GCC=
 fi
 
-cd ${REPO_ROOT}/${REPO_PATH}
+foldable start build_selftests "Building selftests with $TOOLCHAIN"
 
 MAKE_OPTS=$(cat <<EOF
 	ARCH=${ARCH}
+	BPF_GCC=${BPF_GCC}
 	CROSS_COMPILE=${CROSS_COMPILE}
 	CLANG=clang-${LLVM_VERSION}
 	LLC=llc-${LLVM_VERSION}
 	LLVM_STRIP=llvm-strip-${LLVM_VERSION}
-	VMLINUX_BTF=${KBUILD_OUTPUT}/vmlinux
+	VMLINUX_BTF=${VMLINUX_BTF}
 	VMLINUX_H=${VMLINUX_H}
 EOF
 )
 SELF_OPTS=$(cat <<EOF
-	-C ${REPO_ROOT}/${REPO_PATH}/tools/testing/selftests/bpf
+	-C ${KERNEL_ROOT}/tools/testing/selftests/bpf
 EOF
 )
-make ${MAKE_OPTS} headers
+make ${MAKE_OPTS} -C ${KERNEL_ROOT} headers
 make ${MAKE_OPTS} ${SELF_OPTS} clean
-make ${MAKE_OPTS} ${SELF_OPTS} -j $(kernel_build_make_jobs)
+make ${MAKE_OPTS} ${SELF_OPTS} -j $(kernel_build_make_jobs) ${SELFTESTS_BPF_TARGETS:-}
 
 foldable end build_selftests

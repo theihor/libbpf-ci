@@ -3,14 +3,68 @@
 set -euo pipefail
 trap 'exit 2' ERR
 
-source $(cd $(dirname $0) && pwd)/../helpers.sh
+source "${GITHUB_ACTION_PATH}/../helpers.sh"
+
+export ARCH=${ARCH:-$(uname -m)}
+
+export VMLINUZ=${VMLINUZ:-}
+if [[ ! -f "${VMLINUZ}" ]]; then
+    echo "Could not find VMLINUZ=\"$VMLINUZ\", searching with make -s image_name"
+    karch=$(platform_to_kernel_arch $ARCH)
+    image_name=$(ARCH=${karch} make -C ${KERNEL_ROOT} -s image_name)
+    export VMLINUZ=$(realpath ${KBUILD_OUTPUT})/${image_name}
+fi
+
+if [[ ! -f "${VMLINUZ}" ]]; then
+    echo "Could not find VMLINUZ (compressed kernel binary), exiting"
+    exit 2
+fi
+
+# Create a symlink to vmlinux from a "standard" location
+# See btf__load_vmlinux_btf() in libbpf
+export VMLINUX=${VMLINUX:-"$KBUILD_OUTPUT/vmlinux"}
+if [[ -f "${VMLINUX}" ]]; then
+    VMLINUX_VERSION="$(strings ${VMLINUX} | grep -m 1 'Linux version' | awk '{print $3}')" || true
+    sudo mkdir -p /usr/lib/debug/boot
+    sudo ln -sf "${VMLINUX}" "/usr/lib/debug/boot/vmlinux-${VMLINUX_VERSION}"
+else
+    echo "Could not find VMLINUX=\"$VMLINUX\", exiting"
+    exit 2
+fi
+
+RUN_BPFTOOL_CHECKS=${RUN_BPFTOOL_CHECKS:-}
+if [[ -z "${RUN_BPFTOOL_CHECKS}" \
+          && "${KERNEL}" = 'LATEST' \
+          && "$KERNEL_TEST" != "sched_ext" ]];
+then
+    RUN_BPFTOOL_CHECKS=true
+fi
+
+VMTEST_CONFIGS=${VMTEST_CONFIGS:-}
+if [[ -n "$VMTEST_CONFIGS" && -f "${VMTEST_CONFIGS}/run-vmtest.env" ]];
+then
+    source "${VMTEST_CONFIGS:-}/run-vmtest.env"
+fi
+
+VMTEST_SCRIPT=${VMTEST_SCRIPT:-}
+if [[ -z "$VMTEST_SCRIPT" && "$KERNEL_TEST" == "sched_ext" ]];
+then
+    VMTEST_SCRIPT="${GITHUB_ACTION_PATH}/run-scx-selftests.sh"
+elif [[ -z "$VMTEST_SCRIPT" ]];
+then
+    ${GITHUB_ACTION_PATH}/prepare-bpf-selftests.sh
+    VMTEST_SCRIPT="${GITHUB_ACTION_PATH}/run-bpf-selftests.sh"
+fi
+
+# clear exitstatus file
+echo -n > exitstatus
 
 foldable start bpftool_checks "Running bpftool checks..."
-bpftool_exitstatus=0
 
 # bpftool checks are aimed at checking type names, documentation, shell
 # completion etc. against the current kernel, so only run on LATEST.
-if [[ "${KERNEL}" = 'LATEST' ]]; then
+if [[ -n "${RUN_BPFTOOL_CHECKS}" ]]; then
+	bpftool_exitstatus=0
 	# "&& true" does not change the return code (it is not executed if the
 	# Python script fails), but it prevents the trap on ERR set at the top
 	# of this file to trigger on failure.
@@ -21,30 +75,31 @@ if [[ "${KERNEL}" = 'LATEST' ]]; then
 	else
 		echo "bpftool checks returned ${bpftool_exitstatus}."
 	fi
+	echo "bpftool:${bpftool_exitstatus}" >> exitstatus
 else
 	echo "bpftool checks skipped."
 fi
 
-bpftool_exitstatus="bpftool:${bpftool_exitstatus}"
 foldable end bpftool_checks
 
 foldable start vmtest "Starting virtual machine..."
 
 # Tests may be comma-separated. vmtest_selftest expect them to come from CLI space-separated.
-T=$(echo ${KERNEL_TEST} | tr -s ',' ' ')
-# HACK: We need to unmount /tmp to access /tmp from the container....
-vmtest -k "${VMLINUZ}" --kargs "panic=-1 sysctl.vm.panic_on_oom=1" "umount /tmp && \
-        	/bin/mount bpffs /sys/fs/bpf -t bpf && \
-            ip link set lo up && \
-            cd '${GITHUB_WORKSPACE}' && \
-            ./ci/vmtest/vmtest_selftests.sh ${T}"
+TEST_RUNNERS=$(echo ${KERNEL_TEST} | tr -s ',' ' ')
+vmtest -k "${VMLINUZ}" --kargs "panic=-1 sysctl.vm.panic_on_oom=1" \
+       "${GITHUB_ACTION_PATH}/vmtest-init.sh && \
+        cd '${GITHUB_WORKSPACE}'             && \
+        ${VMTEST_SCRIPT} ${TEST_RUNNERS}"
+
+# fixup traffic montioring log paths if present
+PCAP_DIR=/tmp/tmon_pcap
+${GITHUB_ACTION_PATH}/normalize-paths-for-github.sh "$PCAP_DIR"
 
 foldable end vmtest
 
 foldable start collect_status "Collecting exit status"
 
-exitfile="${bpftool_exitstatus}\n"
-exitfile+="$(cat exitstatus 2>/dev/null)"
+exitfile="$(cat exitstatus 2>/dev/null)"
 exitstatus="$(echo -e "$exitfile" | awk --field-separator ':' \
   'BEGIN { s=0 } { if ($2) {s=1} } END { print s }')"
 
@@ -57,12 +112,12 @@ fi
 
 foldable end collect_status
 
-# Try to collect json summary from VM
-if [[ -n ${KERNEL_TEST} && ${KERNEL_TEST} =~ test_progs* ]]
-then
-	## Job summary
-	"${GITHUB_ACTION_PATH}/print_test_summary.py" -s "${GITHUB_STEP_SUMMARY}" -j "${KERNEL_TEST}.json"
-fi
+SUMMARIES=$(find . -maxdepth 1 -name "test_*.json")
+for summary in ${SUMMARIES}; do
+  if [ -f "${summary}" ]; then
+    "${GITHUB_ACTION_PATH}/print_test_summary.py" -s "${GITHUB_STEP_SUMMARY}" -j "${summary}"
+  fi
+done
 
 # Final summary - Don't use a fold, keep it visible
 echo -e "\033[1;33mTest Results:\033[0m"

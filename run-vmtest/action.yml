@@ -4,12 +4,11 @@ inputs:
   arch:
     description: 'arch'
     required: true
-  img:
-    description: 'img path'
-    required: true
   vmlinuz:
-    description: 'vmlinuz path'
-    required: true
+    description: |
+      If passed, this vmlinuz will be used. Otherwise vmlinuz will be
+      searched via make -s image_name in kbuild-output.
+    required: false
   kernel-root:
     description: 'kernel source dir'
     default: '.'
@@ -27,24 +26,21 @@ inputs:
   kbuild-output:
     description: 'Path to KBUILD_OUTPUT'
     required: false
-    type: string
     default: 'kbuild-output'
+  vmtest-release:
+    description: 'Release version of vmtest tool to use'
+    required: false
+    default: 'v0.15.0'
 
 runs:
   using: "composite"
   steps:
-    - name: Find kernel
-      id: find-kernel
-      shell: bash
-      run: |
-        BUILDDIR=$(realpath ${{ inputs.kbuild-output }})
-        vmlinuz="$BUILDDIR/$(KBUILD_OUTPUT="${BUILDDIR}" make -C "${{ inputs.kernel-root }}" -s image_name)"
-        cp "$vmlinuz" ${{ inputs.vmlinuz }}
     - name: Download vmtest
       shell: bash
-      # FIXME: move to proper release
       run: |
-        sudo curl -L https://github.com/danobi/vmtest/releases/download/v0.12.0/vmtest-$(uname -m) -o /usr/bin/vmtest && sudo chmod 755 /usr/bin/vmtest
+        VMTEST_URL="https://github.com/danobi/vmtest/releases/download/${{ inputs.vmtest-release }}/vmtest-$(uname -m)"
+        sudo curl -L $VMTEST_URL -o /usr/bin/vmtest
+        sudo chmod 755 /usr/bin/vmtest
     - name: install qemu tools and selftest dependencies
       shell: bash
       run: |
@@ -52,7 +48,7 @@ runs:
         foldable start install_qemu "Installing QEMU tools"
         # need gawk to support `--field-separator`
         sudo apt-get update && sudo apt-get install -y cpu-checker qemu-kvm qemu-utils qemu-system-x86 qemu-system-s390x qemu-system-arm qemu-guest-agent \
-          ethtool keyutils iptables \
+          ethtool keyutils iptables libpcap-dev \
           gawk
         foldable end install_qemu
     - name: Configure KVM group perms
@@ -71,13 +67,13 @@ runs:
     - name: Run vmtest
       shell: bash
       env:
-        VMLINUZ: ${{ inputs.vmlinuz }}
-        IMG: ${{ inputs.img }}
+        ARCH: ${{ inputs.arch }}
+        KBUILD_OUTPUT: ${{ inputs.kbuild-output }}
         KERNEL_ROOT: ${{ inputs.kernel-root }}
-        MAX_CPU: ${{ inputs.max-cpu }}
         KERNEL_TEST: ${{ inputs.kernel-test }}
+        MAX_CPU: ${{ inputs.max-cpu }}
         OUTPUT_DIR: ${{ inputs.output-dir }}
-        PROJECT_NAME: "/mnt/vmtest"
+        VMLINUZ: ${{ inputs.vmlinuz || '' }}
       run: |
         ${GITHUB_ACTION_PATH}/run.sh
 

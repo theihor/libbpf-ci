@@ -42,63 +42,90 @@ on:
 jobs:
   build:
     name: build for ${{ inputs.arch }} with ${{ inputs.toolchain_full }}${{ inputs.release && '-O2' || '' }}
-    runs-on: ${{ fromJSON(inputs.runs_on) }}
-    timeout-minutes: 100
+    # To run on CodeBuild, runs-on value must correspond to the AWS
+    # CodeBuild project associated with the kernel-patches webhook
+    # However matrix.py passes just a 'codebuild' string
+    runs-on: >-
+      ${{
+          contains(fromJSON(inputs.runs_on), 'codebuild')
+          && format('codebuild-bpf-ci-{0}-{1}', github.run_id, github.run_attempt)
+          || fromJSON(inputs.runs_on)
+      }}
     env:
-        ARCHIVE_MAKE_HELPERS: ${{ github.repository != 'kernel-patches/bpf' && 'true' || '' }}
-        KERNEL: ${{ inputs.kernel }}
-        REPO_ROOT: ${{ github.workspace }}
-        REPO_PATH: ""
+        ARTIFACTS_ARCHIVE: "vmlinux-${{ inputs.arch }}-${{ inputs.toolchain_full }}.tar.zst"
+        BPF_NEXT_BASE_BRANCH: 'master'
+        BPF_NEXT_FETCH_DEPTH: 64 # A bit of history is needed to facilitate incremental builds
+        CROSS_COMPILE: ${{ inputs.arch != 'x86_64' && 'true' || '' }}
+        # BUILD_SCHED_EXT_SELFTESTS: ${{ inputs.arch == 'x86_64' || inputs.arch == 'aarch64' && 'true' || '' }}
         KBUILD_OUTPUT: ${{ github.workspace }}/kbuild-output
-        BASE_BRANCH: >-
-          ${{ github.event_name == 'push' && github.ref_name
-              || github.base_ref
-              || 'bpf-next'
-          }}
-        BUILD_SCHED_EXT_SELFTESTS: ${{ inputs.arch == 'x86_64' || inputs.arch == 'aarch64' && 'true' || '' }}
+        KERNEL: ${{ inputs.kernel }}
+        KERNEL_ROOT: ${{ github.workspace }}
+        REPO_PATH: ""
+        REPO_ROOT: ${{ github.workspace }}
+        RUNNER_TYPE: ${{ contains(fromJSON(inputs.runs_on), 'codebuild') && 'codebuild' || 'default' }}
     steps:
       - uses: actions/checkout@v4
-        # We fetch an actual bit of history here to facilitate incremental
-        # builds (which may check out some earlier upstream change).
         with:
-          fetch-depth: 50
+          fetch-depth: ${{ inputs.download_sources && 1 || env.BPF_NEXT_FETCH_DEPTH }}
+
+      - if: ${{ env.RUNNER_TYPE == 'codebuild' }}
+        shell: bash
+        run: .github/scripts/tmpfsify-workspace.sh
+
       - if: ${{ inputs.download_sources }}
         name: Download bpf-next tree
+        env:
+          FETCH_DEPTH: ${{ env.BPF_NEXT_FETCH_DEPTH }}
         uses: ./get-linux-source
         with:
           dest: '.kernel'
+          rev: ${{ env.BPF_NEXT_BASE_BRANCH }}
+
+      - uses: ./prepare-incremental-build
+        with:
+          repo-root: ${{ inputs.download_sources && '.kernel' || env.REPO_ROOT }}
+          base-branch: >-
+            ${{    inputs.download_sources && env.BPF_NEXT_BASE_BRANCH
+                || github.event_name == 'pull_request' && github.base_ref
+                || github.ref_name
+             }}
+          arch: ${{ inputs.arch }}
+          toolchain_full: ${{ inputs.toolchain_full }}
+          kbuild-output: ${{ env.KBUILD_OUTPUT }}
       - if: ${{ inputs.download_sources }}
         name: Move linux source in place
         shell: bash
         run: |
-          rm -rf .kernel/.git
-          cp -rf .kernel/. .
-          rm -rf .kernel
-      - uses: ./prepare-incremental-build
-        with:
-          repo-root: ${{ env.REPO_ROOT }}
-          base-branch: ${{ env.BASE_BRANCH }}
-          arch: ${{ inputs.arch }}
-          toolchain_full: ${{ inputs.toolchain_full }}
-          kbuild-output: ${{ env.KBUILD_OUTPUT }}
+          cd .kernel
+          rm -rf .git
+          mv -t .. $(ls -A)
+          cd ..
+          rmdir .kernel
       - uses:  ./patch-kernel
+
         with:
           patches-root: '${{ github.workspace }}/ci/diffs'
           repo-root: ${{ env.REPO_ROOT }}
+
       - name: Setup build environment
         uses: ./setup-build-env
         with:
           arch: ${{ inputs.arch }}
           llvm-version: ${{ inputs.llvm-version }}
-          pahole: c2f89dab3f2b0ebb53bab3ed8be32f41cb743c37
-      - name: Print toolchain version used
-        shell: bash
-        run: |
-          TOOLCHAIN=${{ inputs.toolchain }}
-          if [ $TOOLCHAIN = "llvm" ]; then
-            TOOLCHAIN="clang-${{ inputs.llvm-version }}"
-          fi
-          ${TOOLCHAIN} --version
+          pahole: master
+
+        # We have to setup qemu+binfmt in order to enable cross-compation of selftests.
+        # During selftests build, freshly built bpftool is executed.
+        # On self-hosted bare-metal hosts binfmt is pre-configured.
+      - if: ${{ env.RUNNER_TYPE == 'codebuild' && env.CROSS_COMPILE }}
+        name: Set up docker
+        uses: docker/setup-docker-action@v4
+      - if: ${{ env.RUNNER_TYPE == 'codebuild' && env.CROSS_COMPILE }}
+        name: Setup binfmt and qemu
+        uses: docker/setup-qemu-action@v3
+        with:
+          image: tonistiigi/binfmt:qemu-v9.2.0
+
       - name: Build kernel image
         uses: ./build-linux
         with:
@@ -107,19 +134,18 @@ jobs:
           kbuild-output: ${{ env.KBUILD_OUTPUT }}
           max-make-jobs: 32
           llvm-version: ${{ inputs.llvm-version }}
+
       - name: Build selftests/bpf
         uses: ./build-selftests
+        env:
+          MAX_MAKE_JOBS: 32
+          RELEASE: ${{ inputs.release && '1' || '' }}
         with:
           arch: ${{ inputs.arch }}
-          toolchain: ${{ inputs.toolchain }}
-          kbuild-output: ${{ env.KBUILD_OUTPUT }}
-          max-make-jobs: 32
+          kernel-root: ${{ env.KERNEL_ROOT }}
           llvm-version: ${{ inputs.llvm-version }}
-        env:
-          # RELEASE= disables all optimizaions
-          # RELEASE=0 adds -O0 make flag
-          # RELEASE=1 adds -O2 make flag
-          RELEASE: ${{ inputs.release && '1' || '' }}
+          toolchain: ${{ inputs.toolchain }}
+
       - if: ${{ env.BUILD_SCHED_EXT_SELFTESTS }}
         name: Build selftests/sched_ext
         uses: ./build-scx-selftests
@@ -130,6 +156,7 @@ jobs:
           toolchain: ${{ inputs.toolchain }}
           llvm-version: ${{ inputs.llvm-version }}
           max-make-jobs: 32
+
       - if: ${{ github.event_name != 'push' }}
         name: Build samples
         uses: ./build-samples
@@ -140,9 +167,17 @@ jobs:
           max-make-jobs: 32
           llvm-version: ${{ inputs.llvm-version }}
       - name: Tar artifacts
-        working-directory: ${{ env.REPO_ROOT }}
-        run: |
-          bash .github/scripts/tar-artifact.sh ${{ inputs.arch }} ${{ inputs.toolchain_full }}
+        id: tar-artifacts
+        uses: ./tar-artifacts
+        env:
+          ARCHIVE_BPF_SELFTESTS: 'true'
+          ARCHIVE_MAKE_HELPERS: 'true'
+          ARCHIVE_SCHED_EXT_SELFTESTS: ${{ env.BUILD_SCHED_EXT_SELFTESTS }}
+        with:
+          arch: ${{ inputs.arch }}
+          archive: ${{ env.ARTIFACTS_ARCHIVE }}
+          kbuild-output: ${{ env.KBUILD_OUTPUT }}
+          repo-root: ${{ env.REPO_ROOT }}
       - if: ${{ github.event_name != 'push' }}
         name: Remove KBUILD_OUTPUT content
         shell: bash
@@ -155,4 +190,4 @@ jobs:
         with:
           name: vmlinux-${{ inputs.arch }}-${{ inputs.toolchain_full }}${{ inputs.release && '-release' || '' }}
           if-no-files-found: error
-          path: vmlinux-${{ inputs.arch }}-${{ inputs.toolchain_full }}.tar.zst
+          path: ${{ env.ARTIFACTS_ARCHIVE }}

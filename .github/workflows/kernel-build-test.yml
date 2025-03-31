@@ -51,6 +51,7 @@ on:
         default: false
 
 jobs:
+
   # Build kernel and selftest
   build:
     uses: ./.github/workflows/kernel-build.yml
@@ -62,6 +63,7 @@ jobs:
       llvm-version: ${{ inputs.llvm-version }}
       kernel: ${{ inputs.kernel }}
       download_sources: ${{ inputs.download_sources }}
+
   build-release:
     if: ${{ inputs.build_release }}
     uses: ./.github/workflows/kernel-build.yml
@@ -69,11 +71,12 @@ jobs:
       arch: ${{ inputs.arch }}
       toolchain_full: ${{ inputs.toolchain_full }}
       toolchain: ${{ inputs.toolchain }}
-      runs_on: ${{ inputs.runs_on }}
+      runs_on: ${{ inputs.build_runs_on }}
       llvm-version: ${{ inputs.llvm-version }}
       kernel: ${{ inputs.kernel }}
       download_sources: ${{ inputs.download_sources }}
       release: true
+
   test:
     if: ${{ inputs.run_tests }}
     uses: ./.github/workflows/kernel-test.yml
@@ -92,3 +95,18 @@ jobs:
       test: ${{ matrix.test }}
       continue_on_error: ${{ toJSON(matrix.continue_on_error) }}
       timeout_minutes: ${{ matrix.timeout_minutes }}
+
+  gcc-bpf:
+    name: 'GCC BPF'
+    if: ${{ inputs.arch == 'x86_64' }}
+    uses: ./.github/workflows/gcc-bpf.yml
+    needs: [build]
+    with:
+      # GCC BPF does not need /dev/kvm, so use the "build" runners
+      runs_on: ${{ inputs.build_runs_on }}
+      arch: ${{ inputs.arch }}
+      llvm-version: ${{ inputs.llvm-version }}
+      toolchain: ${{ inputs.toolchain }}
+      toolchain_full: ${{ inputs.toolchain_full }}
+      download_sources: ${{ inputs.download_sources }}
+
