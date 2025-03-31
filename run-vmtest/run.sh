@@ -91,6 +91,10 @@ vmtest -k "${VMLINUZ}" --kargs "panic=-1 sysctl.vm.panic_on_oom=1" \
         cd '${GITHUB_WORKSPACE}'             && \
         ${VMTEST_SCRIPT} ${TEST_RUNNERS}"
 
+# fixup traffic montioring log paths if present
+PCAP_DIR=/tmp/tmon_pcap
+${GITHUB_ACTION_PATH}/normalize-paths-for-github.sh "$PCAP_DIR"
+
 foldable end vmtest
 
 exit 0
@@ -110,12 +114,7 @@ fi
 
 foldable end collect_status
 
-if [ -n "${TEST_RUNNERS}" ]; then
-  SUMMARIES=$(for runner in ${TEST_RUNNERS}; do echo "${runner}.json"; done)
-else
-  SUMMARIES=$(find . -maxdepth 1 -name "test_*.json")
-fi
-
+SUMMARIES=$(find . -maxdepth 1 -name "test_*.json")
 for summary in ${SUMMARIES}; do
   if [ -f "${summary}" ]; then
     "${GITHUB_ACTION_PATH}/print_test_summary.py" -s "${GITHUB_STEP_SUMMARY}" -j "${summary}"
