@@ -178,7 +178,7 @@ jobs:
           archive: ${{ env.ARTIFACTS_ARCHIVE }}
           kbuild-output: ${{ env.KBUILD_OUTPUT }}
           repo-root: ${{ env.REPO_ROOT }}
-      - if: ${{ github.event_name != 'push' }}
+      - if: ${{ ! env.CACHED_KERNEL_BUILD }}
         name: Remove KBUILD_OUTPUT content
         shell: bash
         run: |

@@ -18,6 +18,12 @@ inputs:
 runs:
   using: "composite"
   steps:
+
+    - if: ${{ env.BPF_GCC }}
+      uses: ./build-bpf-gcc
+      with:
+        install-dir: ${{ env.BPF_GCC }}
+
     - name: build selftests
       shell: bash
       env:

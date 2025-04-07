@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
+set -x -euo pipefail
 
 source "${GITHUB_ACTION_PATH}/../helpers.sh"
 
