@@ -13,11 +13,9 @@ ARG LLVM_VERSION
 ENV LLVM_VERSION=${LLVM_VERSION}
 RUN /ci/actions/setup-build-env/install_clang.sh
 
-ENV TARGET_ARCH=s390x
 RUN /ci/actions/setup-build-env/install_cross_compilation_toolchain.sh s390x
 
 ENV PAHOLE_BRANCH=master
-# ENV PAHOLE_BRANCH=tmp.master
 RUN /ci/actions/setup-build-env/build_pahole.sh
 
 RUN rm -rf /ci/actions
