@@ -1,49 +1,45 @@
 #!/bin/bash
 
-set -x -euo pipefail
+# This script will only work in BPF CI-like environment,
+# assuming Linux Kernel source at /ci/workspace and
+# kernel-patches/libbpf/ci repo at /ci/actions
 
-# sudo apt-get update &&
-# sudo apt-get install -y \
-#      curl cpu-checker ethtool keyutils iptables gawk \
-#      qemu-kvm qemu-utils qemu-system-x86 qemu-guest-agent
+TESTS_ONLY=${1:-}
 
-export ACTIONS=/opt/actions
+export KBUILD_OUTPUT=${KBUILD_OUTPUT:-$(realpath kbuild-output)}
 
-export GITHUB_REPOSITORY=/opt/workspace
+if [ -z "$TESTS_ONLY" ]; then
+    # /ci/actions/build-linux/build.sh x86_64 llvm $KBUILD_OUTPUT
 
-if ! [ -d $GITHUB_REPOSITORY ]; then
-  echo "$GITHUB_REPOSITORY must be a directory"
-  exit 1
+    export GITHUB_ACTION_PATH=/ci/actions/build-selftests
+    export SELFTESTS_BPF_TARGETS=test_progs-cpuv4
+    /ci/actions/build-selftests/build_selftests.sh x86_64 llvm $(pwd)
+
+    rm -rf selftests
+    cp -r tools/testing/selftests selftests
 fi
 
-cd $GITHUB_REPOSITORY
+export ALLOWLIST_FILE=$(realpath selftests/bpf/ALLOWLIST)
+echo "sockmap_ktls" > $ALLOWLIST_FILE
+# export DENYLIST_FILE=$(realpath selftests/bpf/DENYLIST)
+# echo "verif_scale_pyperf600" > $DENYLIST_FILE
 
-if [ ! -d selftests ]; then
-  ln -s tools/testing/selftests selftests
-fi
+# export DENYLIST_FILE=$(realpath denylist.tmp)
 
-export GITHUB_WORKSPACE=$(pwd)
-export GITHUB_ACTION_PATH=$(realpath run-vmtest)
-export GITHUB_STEP_SUMMARY=.github-step-summary
+# export TEST_PROGS_WATCHDOG_TIMEOUT=20
 
+# test_progs_parallel
+
+export KERNEL_TEST=test_progs_cpuv4
 export KERNEL=LATEST
-export KERNEL_ROOT=$GITHUB_WORKSPACE
-export KERNEL_TEST="test_progs"
+export KERNEL_ROOT=$(pwd)
+export PATH=$(pwd):$PATH
+export GITHUB_ACTION_PATH=/ci/actions/run-vmtest
 
-echo "build_id" > $KERNEL_ROOT/selftests/bpf/ALLOWLIST
-
-export KBUILD_OUTPUT=$KERNEL_ROOT/kbuild-output
-export VMLINUZ=$KBUILD_OUTPUT/arch/x86/boot/bzImage
-
-export PROJECT_NAME="/opt/linux"
-
-mkdir -p bin
-if ! [ -f bin/vmtest ]; then
-  curl -L https://github.com/danobi/vmtest/releases/download/v0.12.0/vmtest-$(uname -m) -o bin/vmtest
-  chmod 755 bin/vmtest
+if ! [ -f /usr/bin/vmtest ]; then
+  curl -L https://github.com/danobi/vmtest/releases/download/v0.15.0/vmtest-$(uname -m) -o vmtest
+  chmod 755 vmtest
+  sudo cp vmtest /usr/bin/vmtest
 fi
 
-export PATH=$(pwd)/bin:$PATH
-
-bash $ACTIONS/run-vmtest/run.sh | tee
-
+/ci/actions/run-vmtest/run.sh | tee /ci/run.log
