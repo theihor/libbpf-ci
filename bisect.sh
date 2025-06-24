@@ -25,21 +25,21 @@ if [ -z "$TESTS_ONLY" ]; then
 fi
 
 export ALLOWLIST_FILE=$(realpath selftests/bpf/ALLOWLIST)
-echo "btf_tag/btf_type_tag_percpu_vmlinux_helper" > $ALLOWLIST_FILE
+echo "trace" > $ALLOWLIST_FILE
 # export DENYLIST_FILE=$(realpath selftests/bpf/DENYLIST)
 # echo "sockmap_ktls/sockmap_ktls disconnect_after_delete" > $DENYLIST_FILE
 
 # export TEST_PROGS_WATCHDOG_TIMEOUT=20
 
 # test_progs_parallel
-export KERNEL_TEST=test_progs
+export KERNEL_TEST=test_progs_parallel
 export KERNEL=LATEST
 export KERNEL_ROOT=$(pwd)
 export PATH=$(pwd):$PATH
 export GITHUB_ACTION_PATH=/ci/actions/run-vmtest
 
-# /ci/actions/run-vmtest/run.sh | tee /ci/run.log
-# exit 0
+/ci/actions/run-vmtest/run.sh | tee /ci/run.log
+exit 0
 
 ### bisection
 
